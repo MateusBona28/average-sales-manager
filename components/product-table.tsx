@@ -7,7 +7,6 @@ import { Search } from "lucide-react"
 
 // Tipo para os produtos
 interface Produto {
-  id: number
   item: string
   quantidade: number
   periodo: string
@@ -44,8 +43,8 @@ export function ProdutosTable({ produtosData }: { produtosData: Produto[] }) {
           </TableHeader>
           <TableBody>
             {filteredProdutos.length > 0 ? (
-              filteredProdutos.map((produto) => (
-                <TableRow key={produto.id} className="hover:bg-sky-50">
+              filteredProdutos.map((produto, index) => (
+                <TableRow key={index} className="hover:bg-sky-50">
                   <TableCell className="font-medium">{produto.item}</TableCell>
                   <TableCell className="text-right">{produto.quantidade}</TableCell>
                   <TableCell>{produto.periodo}</TableCell>
@@ -54,7 +53,7 @@ export function ProdutosTable({ produtosData }: { produtosData: Produto[] }) {
             ) : (
               <TableRow>
                 <TableCell colSpan={3} className="text-center py-6 text-gray-500">
-                  Nenhum produto encontrado com o termo "{searchTerm}"
+                  Nenhum produto encontrado com o termo &quot;{searchTerm}&quot;
                 </TableCell>
               </TableRow>
             )}

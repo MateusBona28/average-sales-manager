@@ -3,8 +3,14 @@ import { FileUploader } from "@/components/file-uploader";
 import { ProdutosTable } from "@/components/product-table";
 import { useState } from "react";
 
+interface FormattedItem {
+  item: string
+  quantidade: number
+  periodo: string
+}
+
 export default function Home() {
-  const [formattedData, setFormattedData] = useState<any[]>([])
+  const [formattedData, setFormattedData] = useState<FormattedItem[]>([])
   return (
     <main className="flex min-h-screen flex-col pt-10 bg-white">
       <div className="max-w-[100vw] flex flex-col gap-8 items-center">

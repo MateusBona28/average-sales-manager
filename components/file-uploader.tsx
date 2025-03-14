@@ -9,7 +9,22 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import * as XLSX from 'xlsx'
 
-export function FileUploader({ setFormattedData, formattedData }: { setFormattedData: (data: any[]) => void, formattedData: any[] }) {
+interface FormattedItem {
+  item: string
+  quantidade: number
+  periodo: string
+}
+
+interface ExcelVenda {
+  Tipo: string
+  Descrição: string
+  Data: number
+}
+
+export function FileUploader({ setFormattedData, formattedData }: { 
+  setFormattedData: (data: FormattedItem[]) => void
+  formattedData: FormattedItem[] 
+}) {
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
@@ -66,13 +81,13 @@ export function FileUploader({ setFormattedData, formattedData }: { setFormatted
         const workbook = XLSX.read(data, { type: 'array' })
         const firstSheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[firstSheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet)
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
         
         // Transformar em objeto e filtrar apenas vendas
-        const vendas = jsonData.filter((item: any) => item.Tipo === "Venda")
+        const vendas = jsonData.filter((item) => item.Tipo === "Venda")
         
         // Mapear e processar os itens
-        const itensProcessados = vendas.map((venda: any) => {
+        const itensProcessados = vendas.map((venda) => {
           const [quantidade, item] = venda.Descrição.split('X').map((str: string) => str.trim())
           
           // Converter número do Excel para data JavaScript
@@ -104,8 +119,8 @@ export function FileUploader({ setFormattedData, formattedData }: { setFormatted
         const periodoGlobal = `${formatarData(dataMin)} até ${formatarData(dataMax)}`
 
         // Reduzir para somar quantidades de itens iguais
-        const itensAgrupados = itensProcessados.reduce((acc: any, curr) => {
-          const itemExistente = acc.find((item: any) => item.item === curr.item)
+        const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
+          const itemExistente = acc.find((item) => item.item === curr.item)
           if (itemExistente) {
             itemExistente.quantidade += curr.quantidade
           } else {
@@ -118,7 +133,7 @@ export function FileUploader({ setFormattedData, formattedData }: { setFormatted
           return acc
         }, [])
         
-        itensAgrupados.sort((a: any, b: any) => a.item.localeCompare(b.item))
+        itensAgrupados.sort((a, b) => a.item.localeCompare(b.item))
         
         setFormattedData(itensAgrupados)
         
