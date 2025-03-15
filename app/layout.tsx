@@ -1,7 +1,8 @@
-import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { ProdutosProvider } from "@/contexts/ProdutosContext"
+import { Sidebar } from "@/components/ui/sidebar"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,7 +18,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <ProdutosProvider>
+          <div className="flex h-screen overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-y-auto bg-gray-50 p-8 transition-all duration-300">
+              {children}
+            </main>
+          </div>
+        </ProdutosProvider>
+      </body>
     </html>
   )
 }
