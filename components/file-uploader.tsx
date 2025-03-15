@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import * as XLSX from 'xlsx'
 import { useProdutos } from "@/contexts/ProdutosContext"
 import { useRouter } from "next/navigation"
+import { useVendas } from "@/contexts/VendasContext"
 
 interface FormattedItem {
   item: string
@@ -18,16 +19,24 @@ interface FormattedItem {
   valor_unitario: number
 }
 
+interface VendaDiaria {
+  data: string
+  valor: number
+  descontos: number
+}
+
 interface ExcelVenda {
   Tipo: string
   Descrição: string
   Data: number
   "Vl.Produtos": string
+  Desconto: number
 }
 
 export function FileUploader() {
   const router = useRouter()
   const { setFormattedData } = useProdutos()
+  const { setVendasDiarias } = useVendas()
   const [isDragging, setIsDragging] = useState(false)
   const [isError, setIsError] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -71,6 +80,119 @@ export function FileUploader() {
     processFile(selectedFile)
   }
 
+  const formatAndSetProductsData = (vendas: ExcelVenda[]) => {
+    // Mapear e processar os itens
+    const itensProcessados = vendas.map((venda) => {
+      const [quantidade, item] = venda.Descrição.split('X').map((str: string) => str.trim())
+      
+      // Converter número do Excel para data JavaScript
+      const excelDate = venda.Data
+      const millisecondsPerDay = 24 * 60 * 60 * 1000
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30))
+      const date = new Date(excelEpoch.getTime() + (excelDate * millisecondsPerDay))
+      
+      return {
+        item,
+        quantidade: parseInt(quantidade),
+        data: date,
+        Vl: {
+          Produtos: venda["Vl.Produtos"]
+        }
+      }
+    })
+
+    // Encontrar a menor e maior data de todas as vendas
+    const datas = itensProcessados.map(item => item.data)
+    const dataMin = new Date(Math.min(...datas.map(d => d.getTime())))
+    const dataMax = new Date(Math.max(...datas.map(d => d.getTime())))
+
+    // Formatar o período global
+    const formatarData = (date: Date) => {
+      const dia = date.getDate().toString().padStart(2, '0')
+      const mes = (date.getMonth() + 1).toString().padStart(2, '0')
+      const ano = date.getFullYear()
+      return `${dia}/${mes}/${ano}`
+    }
+    
+    const periodoGlobal = `${formatarData(dataMin)} até ${formatarData(dataMax)}`
+
+    // Reduzir para somar quantidades de itens iguais
+    const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
+      // Extrair o valor do produto da string (ex: "R$ 123.45" -> 123.45)
+      const valorString = curr.Vl.Produtos.replace('R$', '').trim()
+      const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
+      
+      const itemExistente = acc.find((item) => item.item === curr.item)
+      if (itemExistente) {
+        itemExistente.quantidade += curr.quantidade
+        itemExistente.valor_total += valor
+      } else {
+        acc.push({
+          item: curr.item,
+          quantidade: curr.quantidade,
+          periodo: periodoGlobal,
+          valor_total: valor,
+          valor_unitario: 0 // será calculado depois
+        })
+      }
+      return acc
+    }, [])
+    
+    // Calcular valor unitário para cada item
+    const itensFinais = itensAgrupados.map(item => ({
+      ...item,
+      valor_unitario: Number((item.valor_total / item.quantidade).toFixed(2))
+    }))
+    
+    itensFinais.sort((a, b) => a.item.localeCompare(b.item))
+    
+    setFormattedData(itensFinais)
+  }
+
+  const formatAndSetDailySales = (vendas: ExcelVenda[]) => {
+    // Agrupar vendas por data
+    const vendasPorDia = vendas.reduce<Record<string, { valor: number; descontos: number }>>((acc, venda) => {
+      // Converter número do Excel para data JavaScript
+      const excelDate = venda.Data
+      const millisecondsPerDay = 24 * 60 * 60 * 1000
+      const excelEpoch = new Date(Date.UTC(1899, 11, 30))
+      const date = new Date(excelEpoch.getTime() + (excelDate * millisecondsPerDay))
+      
+      // Formatar a data como chave (DD/MM/YYYY)
+      const dataFormatada = date.toLocaleDateString('pt-BR')
+      
+      // Extrair e converter valor dos produtos
+      const valorString = venda["Vl.Produtos"].replace('R$', '').trim()
+      const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
+      
+      // Extrair e converter valor dos descontos
+      const desconto = venda.Desconto
+      
+      // Acumular valores para a data
+      if (!acc[dataFormatada]) {
+        acc[dataFormatada] = { valor: 0, descontos: 0 }
+      }
+      
+      acc[dataFormatada].valor += valor
+      acc[dataFormatada].descontos += desconto
+      
+      return acc
+    }, {})
+    
+    // Converter objeto em array e ordenar por data
+    const vendasDiarias: VendaDiaria[] = Object.entries(vendasPorDia).map(([data, valores]) => ({
+      data,
+      valor: Number(valores.valor.toFixed(2)),
+      descontos: Number(valores.descontos.toFixed(2))
+    })).sort((a, b) => {
+      const [diaA, mesA, anoA] = a.data.split('/').map(Number)
+      const [diaB, mesB, anoB] = b.data.split('/').map(Number)
+      return new Date(anoA, mesA - 1, diaA).getTime() - new Date(anoB, mesB - 1, diaB).getTime()
+    })
+    setVendasDiarias(vendasDiarias)
+    return vendasDiarias
+  }
+
   const processFile = async (selectedFile: File) => {
     setIsUploading(true)
     setProgress(0)
@@ -85,76 +207,17 @@ export function FileUploader() {
         const worksheet = workbook.Sheets[firstSheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
         
-        // Transformar em objeto e filtrar apenas vendas
+        // Filtrar apenas vendas
         const vendas = jsonData.filter((item) => item.Tipo === "Venda")
+        console.log(vendas)
         
-        // Mapear e processar os itens
-        const itensProcessados = vendas.map((venda) => {
-          const [quantidade, item] = venda.Descrição.split('X').map((str: string) => str.trim())
-          
-          // Converter número do Excel para data JavaScript
-          const excelDate = venda.Data
-          const millisecondsPerDay = 24 * 60 * 60 * 1000
-          const excelEpoch = new Date(Date.UTC(1899, 11, 30))
-          const date = new Date(excelEpoch.getTime() + (excelDate * millisecondsPerDay))
-          
-          return {
-            item,
-            quantidade: parseInt(quantidade),
-            data: date,
-            Vl: {
-              Produtos: venda["Vl.Produtos"]
-            }
-          }
-        })
-
-        // Encontrar a menor e maior data de todas as vendas
-        const datas = itensProcessados.map(item => item.data)
-        const dataMin = new Date(Math.min(...datas.map(d => d.getTime())))
-        const dataMax = new Date(Math.max(...datas.map(d => d.getTime())))
-
-        // Formatar o período global
-        const formatarData = (date: Date) => {
-          const dia = date.getDate().toString().padStart(2, '0')
-          const mes = (date.getMonth() + 1).toString().padStart(2, '0')
-          const ano = date.getFullYear()
-          return `${dia}/${mes}/${ano}`
-        }
+        // Processar produtos
+        formatAndSetProductsData(vendas)
         
-        const periodoGlobal = `${formatarData(dataMin)} até ${formatarData(dataMax)}`
-
-        // Reduzir para somar quantidades de itens iguais
-        const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
-          // Extrair o valor do produto da string (ex: "R$ 123.45" -> 123.45)
-          const valorString = curr.Vl.Produtos.replace('R$', '').trim()
-          const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
-          
-          const itemExistente = acc.find((item) => item.item === curr.item)
-          if (itemExistente) {
-            itemExistente.quantidade += curr.quantidade
-            itemExistente.valor_total += valor
-          } else {
-            acc.push({
-              item: curr.item,
-              quantidade: curr.quantidade,
-              periodo: periodoGlobal,
-              valor_total: valor,
-              valor_unitario: 0 // será calculado depois
-            })
-          }
-          return acc
-        }, [])
+        // Processar vendas diárias
+        formatAndSetDailySales(vendas)
         
-        // Calcular valor unitário para cada item
-        const itensFinais = itensAgrupados.map(item => ({
-          ...item,
-          valor_unitario: Number((item.valor_total / item.quantidade).toFixed(2))
-        }))
-        
-        itensFinais.sort((a, b) => a.item.localeCompare(b.item))
-        
-        setFormattedData(itensFinais)
-        router.push('/produtos')
+        router.push('/visao-geral')
       }
       
       reader.readAsArrayBuffer(selectedFile)
