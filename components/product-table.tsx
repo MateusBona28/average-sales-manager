@@ -7,15 +7,6 @@ import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useProdutos } from "@/contexts/ProdutosContext"
 
-// Tipo para os produtos
-interface Produto {
-  item: string
-  quantidade: number
-  periodo: string
-  valor_total: number
-  valor_unitario: number
-}
-
 type SortField = "quantidade" | "valor_total" | null
 
 // Função para formatar valores em reais
