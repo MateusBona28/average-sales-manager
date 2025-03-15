@@ -1,33 +1,36 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
-import { Upload, FileUp, Check, AlertCircle } from "lucide-react"
+import { Upload, FileUp, AlertCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import * as XLSX from 'xlsx'
+import { useProdutos } from "@/contexts/ProdutosContext"
+import { useRouter } from "next/navigation"
 
 interface FormattedItem {
   item: string
   quantidade: number
   periodo: string
+  valor_total: number
+  valor_unitario: number
 }
 
 interface ExcelVenda {
   Tipo: string
   Descrição: string
   Data: number
+  "Vl.Produtos": string
 }
 
-export function FileUploader({ setFormattedData, formattedData }: { 
-  setFormattedData: (data: FormattedItem[]) => void
-  formattedData: FormattedItem[] 
-}) {
-  const [file, setFile] = useState<File | null>(null)
+export function FileUploader() {
+  const router = useRouter()
+  const { setFormattedData } = useProdutos()
   const [isDragging, setIsDragging] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
+  const [isError, setIsError] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -52,8 +55,8 @@ export function FileUploader({ setFormattedData, formattedData }: {
       ) {
         handleFile(droppedFile)
       } else {
-        setUploadStatus("error")
-        setTimeout(() => setUploadStatus("idle"), 3000)
+        setIsError(true)
+        setTimeout(() => setIsError(false), 3000)
       }
     }
   }
@@ -65,12 +68,11 @@ export function FileUploader({ setFormattedData, formattedData }: {
   }
 
   const handleFile = (selectedFile: File) => {
-    setFile(selectedFile)
-    simulateUpload(selectedFile)
+    processFile(selectedFile)
   }
 
-  const simulateUpload = async (selectedFile: File) => {
-    setUploadStatus("uploading")
+  const processFile = async (selectedFile: File) => {
+    setIsUploading(true)
     setProgress(0)
 
     try {
@@ -99,7 +101,10 @@ export function FileUploader({ setFormattedData, formattedData }: {
           return {
             item,
             quantidade: parseInt(quantidade),
-            data: date
+            data: date,
+            Vl: {
+              Produtos: venda["Vl.Produtos"]
+            }
           }
         })
 
@@ -120,100 +125,63 @@ export function FileUploader({ setFormattedData, formattedData }: {
 
         // Reduzir para somar quantidades de itens iguais
         const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
+          // Extrair o valor do produto da string (ex: "R$ 123.45" -> 123.45)
+          const valorString = curr.Vl.Produtos.replace('R$', '').trim()
+          const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
+          
           const itemExistente = acc.find((item) => item.item === curr.item)
           if (itemExistente) {
             itemExistente.quantidade += curr.quantidade
+            itemExistente.valor_total += valor
           } else {
             acc.push({
               item: curr.item,
               quantidade: curr.quantidade,
-              periodo: periodoGlobal
+              periodo: periodoGlobal,
+              valor_total: valor,
+              valor_unitario: 0 // será calculado depois
             })
           }
           return acc
         }, [])
         
-        itensAgrupados.sort((a, b) => a.item.localeCompare(b.item))
+        // Calcular valor unitário para cada item
+        const itensFinais = itensAgrupados.map(item => ({
+          ...item,
+          valor_unitario: Number((item.valor_total / item.quantidade).toFixed(2))
+        }))
         
-        setFormattedData(itensAgrupados)
+        itensFinais.sort((a, b) => a.item.localeCompare(b.item))
         
-        // Criar um novo workbook com os dados processados
-        /* const newWorkbook = XLSX.utils.book_new()
-        const newWorksheet = XLSX.utils.json_to_sheet(itensAgrupados)
-        XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Itens Agrupados")
-        
-        // Gerar o arquivo Excel
-        const excelBuffer = XLSX.write(newWorkbook, { bookType: 'xlsx', type: 'array' })
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-        
-        // Criar link para download
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `crazy-programming.xls`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
-        */
-        
-        setProgress(100)
-        setUploadStatus("success")
+        setFormattedData(itensFinais)
+        router.push('/produtos')
       }
       
       reader.readAsArrayBuffer(selectedFile)
     } catch (error) {
       console.error('Erro ao processar arquivo:', error)
-      setUploadStatus("error")
-      setTimeout(() => setUploadStatus("idle"), 3000)
+      setIsError(true)
+      setTimeout(() => setIsError(false), 3000)
+    } finally {
+      setIsUploading(false)
+      setProgress(0)
     }
-  }
-
-  const resetUpload = () => {
-    setFile(null)
-    setUploadStatus("idle")
-    setProgress(0)
-    setFormattedData([]) // Limpa os dados formatados
   }
 
   return (
     <Card className="border-2 border-sky-100">
       <CardContent className="p-6">
-        {formattedData.length > 0 ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center bg-sky-50 text-sky-500 rounded-lg p-4">
-              <Check className="h-6 w-6 mr-2" />
-              <span>
-                Arquivo processado com sucesso
-              </span>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <Button onClick={resetUpload} variant="outline" className="border-sky-200 text-sky-700 hover:bg-sky-50">
-                Fazer novo upload
-              </Button>
-            </div>
-          </div>
-        ) : uploadStatus === "success" ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center bg-sky-50 text-sky-500 rounded-lg p-4">
-              <Check className="h-6 w-6 mr-2" />
-              <span>
-                Sucesso ao processar o arquivo: <strong>{file?.name}</strong>
-              </span>
-            </div>
-            <div className="flex flex-col space-y-2">
-              <Button onClick={resetUpload} variant="outline" className="border-sky-200 text-sky-700 hover:bg-sky-50">
-                Fazer outro upload
-              </Button>
-            </div>
-          </div>
-        ) : uploadStatus === "error" ? (
+        {isError ? (
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="flex items-center justify-center bg-red-50 text-red-500 rounded-lg p-4 w-full">
               <AlertCircle className="h-6 w-6 mr-2" />
               <span>Por favor, envie apenas arquivos .xlsx ou .xls</span>
             </div>
-            <Button onClick={resetUpload} variant="outline" className="border-sky-200 text-sky-700 hover:bg-sky-50">
+            <Button 
+              onClick={() => setIsError(false)} 
+              variant="outline" 
+              className="border-sky-200 text-sky-700 hover:bg-sky-50"
+            >
               Tente novamente
             </Button>
           </div>
@@ -226,12 +194,12 @@ export function FileUploader({ setFormattedData, formattedData }: {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            {uploadStatus === "uploading" ? (
+            {isUploading ? (
               <div className="w-full space-y-4">
                 <div className="flex items-center justify-center">
                   <FileUp className="h-8 w-8 text-sky-500 animate-pulse" />
                 </div>
-                <p className="text-center text-sm text-gray-500">Processando {file?.name}...</p>
+                <p className="text-center text-sm text-gray-500">Processando arquivo...</p>
                 <Progress value={progress} className="h-2 bg-sky-100" />
               </div>
             ) : (
