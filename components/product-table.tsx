@@ -17,7 +17,7 @@ const formatarMoeda = (valor: number) => {
   }).format(valor)
 }
 
-const ITENS_POR_PAGINA = 10
+const ITENS_POR_PAGINA = 12
 
 export function ProdutosTable() {
   const { formattedData } = useProdutos()
@@ -47,7 +47,7 @@ export function ProdutosTable() {
   }
 
   return (
-    <div className="space-y-4 w-[80%]">
+    <div className="space-y-4 w-[100%]">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
         <Input

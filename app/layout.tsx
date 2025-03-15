@@ -8,8 +8,8 @@ import { Sidebar } from "@/components/ui/sidebar"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Average Sales Generator",
-  description: "Gerador de média de vendas",
+  title: "Lojinho",
+  description: "Aplicação para processamento de arquivos Excel",
 }
 
 export default function RootLayout({
