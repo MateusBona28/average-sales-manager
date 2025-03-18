@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Upload, FileUp, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -189,6 +189,10 @@ export function FileUploader() {
       setProgress(0)
     }
   }
+
+  useEffect(() => {
+    handlePeriodoChange(formData.periodo)
+  }, [])
 
   return (
     <Card className="border-2 border-sky-100 w-full max-w-3xl mx-auto">
