@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Upload, Settings } from "lucide-react"
+import { Upload } from "lucide-react"
 import { Table, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"

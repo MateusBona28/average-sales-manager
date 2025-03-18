@@ -139,6 +139,8 @@ export function FileUploader() {
   const formatAndSetProductsData = (vendas: ExcelVenda[], dataInicial: Date, dataFinal: Date) => {
     const periodo = `${formatarData(dataInicial)} até ${formatarData(dataFinal)}`
 
+    console.log(vendas)
+
     // Filtrar e processar apenas vendas válidas
     const itensProcessados = vendas
       .filter(validarVenda)
@@ -280,7 +282,7 @@ export function FileUploader() {
               <Button
                 type="submit"
                 className="w-full bg-sky-500 hover:bg-sky-600 text-white"
-                disabled={isUploading || !formData.file || !formData.dataInicial || !formData.dataFinal}
+                disabled={isUploading || !formData.file || (formData.periodo === 'escolher_periodo' && (!formData.dataInicial || !formData.dataFinal))}
               >
                 {isUploading ? (
                   <div className="flex items-center space-x-2">
