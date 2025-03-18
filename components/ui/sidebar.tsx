@@ -1,6 +1,7 @@
 "use client"
 
-import { Upload, Table, ChevronLeft, ChevronRight, BarChart } from "lucide-react"
+import { Upload } from "lucide-react"
+import { Table, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -22,15 +23,15 @@ export function Sidebar() {
       icon: Table,
       href: "/produtos",
     },
-    {
+    /*{
       title: "Visão Geral",
       icon: BarChart,
       href: "/visao-geral",
-    },
+    },*/
   ]
 
   return (
-    <div 
+    <div
       className={cn(
         "flex h-full flex-col bg-white border-r relative transition-all duration-300 ease-in-out",
         isCollapsed ? "w-[70px]" : "w-[200px]"
@@ -72,7 +73,7 @@ export function Sidebar() {
               title={isCollapsed ? item.title : undefined}
             >
               <item.icon className="h-5 w-5 flex-shrink-0" />
-              <span 
+              <span
                 className={cn(
                   "transition-all duration-300",
                   isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"

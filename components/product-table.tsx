@@ -26,9 +26,9 @@ export function ProdutosTable() {
   const [currentPage, setCurrentPage] = useState(1)
 
   // Filtra os produtos com base no termo de busca
-  const filteredProdutos = formattedData.filter((produto) =>
+  const filteredProdutos = formattedData?.filter((produto) =>
     produto.item.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+  ) || []
 
   // Ordena os produtos
   const sortedProdutos = [...filteredProdutos].sort((a, b) => {
@@ -99,7 +99,7 @@ export function ProdutosTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-gray-500">
-                  Nenhum produto encontrado com o termo &quot;{searchTerm}&quot;
+                  {!formattedData ? "Nenhum dado carregado" : `Nenhum produto encontrado com o termo "${searchTerm}"`}
                 </TableCell>
               </TableRow>
             )}
@@ -109,7 +109,7 @@ export function ProdutosTable() {
 
       <div className="flex items-center justify-between text-sm text-gray-500 pb-4">
         <div>
-          Exibindo {startIndex + 1}-{Math.min(startIndex + ITENS_POR_PAGINA, filteredProdutos.length)} de {filteredProdutos.length} produtos
+          {formattedData && `Exibindo ${startIndex + 1}-${Math.min(startIndex + ITENS_POR_PAGINA, filteredProdutos.length)} de ${filteredProdutos.length} produtos`}
         </div>
         <div className="flex items-center gap-2">
           <Button
