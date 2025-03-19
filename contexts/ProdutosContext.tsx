@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, ReactNode } from "react"
+import React, { createContext, useContext, useState } from 'react'
 
 interface Produto {
   item: string
@@ -11,14 +11,14 @@ interface Produto {
 }
 
 interface ProdutosContextType {
-  formattedData: Produto[]
+  formattedData: Produto[] | null
   setFormattedData: (data: Produto[]) => void
 }
 
 const ProdutosContext = createContext<ProdutosContextType | undefined>(undefined)
 
-export function ProdutosProvider({ children }: { children: ReactNode }) {
-  const [formattedData, setFormattedData] = useState<Produto[]>([])
+export function ProdutosProvider({ children }: { children: React.ReactNode }) {
+  const [formattedData, setFormattedData] = useState<Produto[] | null>(null)
 
   return (
     <ProdutosContext.Provider value={{ formattedData, setFormattedData }}>
@@ -30,7 +30,7 @@ export function ProdutosProvider({ children }: { children: ReactNode }) {
 export function useProdutos() {
   const context = useContext(ProdutosContext)
   if (context === undefined) {
-    throw new Error("useProdutos deve ser usado dentro de um ProdutosProvider")
+    throw new Error('useProdutos deve ser usado dentro de um ProdutosProvider')
   }
   return context
 } 
