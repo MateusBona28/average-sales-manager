@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Upload, FileUp, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,12 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import * as XLSX from 'xlsx'
 import { useProdutos } from "@/contexts/ProdutosContext"
 import { useRouter } from "next/navigation"
+import { useVendas } from "@/contexts/VendasContext"
 
 interface ExcelVenda {
   Descrição: string
   "Preço de Venda": number
   "Quant.Vendas": number
   "Total Vendas": number
+  "Descontos": number
+  "Valor Pago": number
 }
 
 interface FormData {
@@ -38,6 +41,7 @@ interface ProdutoProcessado {
 export function FileUploader() {
   const router = useRouter()
   const { setFormattedData } = useProdutos()
+  const { setVendasData } = useVendas()
   const [isError, setIsError] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -136,10 +140,23 @@ export function FileUploader() {
     }
   }
 
-  const formatAndSetProductsData = (vendas: ExcelVenda[], dataInicial: Date, dataFinal: Date) => {
+  const processarVendasData = (vendas: ExcelVenda[], dataInicial: Date, dataFinal: Date) => {
+    // Filtrar apenas vendas válidas
+    const vendasValidas = vendas.filter(validarVenda)
     const periodo = `${formatarData(dataInicial)} até ${formatarData(dataFinal)}`
 
-    console.log(vendas)
+    const vendasData = {
+      totalVendas: vendasValidas.reduce((acc, venda) => acc + (venda["Valor Pago"] || 0), 0),
+      totalPendente: vendasValidas.reduce((acc, venda) => acc + ((venda["Total Vendas"] || 0) - (venda["Valor Pago"] || 0)), 0),
+      totalDescontos: vendasValidas.reduce((acc, venda) => acc + (venda["Descontos"] || 0), 0),
+      periodo
+    }
+
+    setVendasData(vendasData)
+  }
+
+  const formatAndSetProductsData = (vendas: ExcelVenda[], dataInicial: Date, dataFinal: Date) => {
+    const periodo = `${formatarData(dataInicial)} até ${formatarData(dataFinal)}`
 
     // Filtrar e processar apenas vendas válidas
     const itensProcessados = vendas
@@ -173,8 +190,9 @@ export function FileUploader() {
         const worksheet = workbook.Sheets[firstSheetName]
         const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
 
-        // Processar produtos
+        // Processar produtos e vendas
         formatAndSetProductsData(jsonData, dataInicial, dataFinal)
+        processarVendasData(jsonData, dataInicial, dataFinal)
 
         router.push('/produtos')
       }
@@ -189,6 +207,10 @@ export function FileUploader() {
       setProgress(0)
     }
   }
+
+  useEffect(() => {
+    handlePeriodoChange(formData.periodo)
+  }, [])
 
   return (
     <Card className="border-2 border-sky-100 w-full max-w-3xl mx-auto">

@@ -1,25 +1,26 @@
 "use client"
 
-import { createContext, useContext, useState } from "react"
+import React, { createContext, useContext, useState } from 'react'
 
-interface VendaDiaria {
-  data: string
-  valor: number
-  descontos: number
+interface VendasData {
+  totalVendas: number
+  totalPendente: number
+  totalDescontos: number
+  periodo: string
 }
 
 interface VendasContextType {
-  vendasDiarias: VendaDiaria[]
-  setVendasDiarias: (vendas: VendaDiaria[]) => void
+  vendasData: VendasData | null
+  setVendasData: (data: VendasData) => void
 }
 
 const VendasContext = createContext<VendasContextType | undefined>(undefined)
 
 export function VendasProvider({ children }: { children: React.ReactNode }) {
-  const [vendasDiarias, setVendasDiarias] = useState<VendaDiaria[]>([])
+  const [vendasData, setVendasData] = useState<VendasData | null>(null)
 
   return (
-    <VendasContext.Provider value={{ vendasDiarias, setVendasDiarias }}>
+    <VendasContext.Provider value={{ vendasData, setVendasData }}>
       {children}
     </VendasContext.Provider>
   )
@@ -28,7 +29,7 @@ export function VendasProvider({ children }: { children: React.ReactNode }) {
 export function useVendas() {
   const context = useContext(VendasContext)
   if (context === undefined) {
-    throw new Error("useVendas deve ser usado dentro de um VendasProvider")
+    throw new Error('useVendas deve ser usado dentro de um VendasProvider')
   }
   return context
 } 

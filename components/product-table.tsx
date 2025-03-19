@@ -99,7 +99,7 @@ export function ProdutosTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-6 text-gray-500">
-                  {!formattedData ? "Nenhum dado carregado" : `Nenhum produto encontrado com o termo "${searchTerm}"`}
+                  Nenhum produto encontrado com o termo &quot;{searchTerm}&quot;
                 </TableCell>
               </TableRow>
             )}
@@ -109,7 +109,7 @@ export function ProdutosTable() {
 
       <div className="flex items-center justify-between text-sm text-gray-500 pb-4">
         <div>
-          {formattedData && `Exibindo ${startIndex + 1}-${Math.min(startIndex + ITENS_POR_PAGINA, filteredProdutos.length)} de ${filteredProdutos.length} produtos`}
+          Exibindo {startIndex + 1}-{Math.min(startIndex + ITENS_POR_PAGINA, filteredProdutos.length)} de {filteredProdutos.length} produtos
         </div>
         <div className="flex items-center gap-2">
           <Button
