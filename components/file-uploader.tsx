@@ -38,13 +38,6 @@ interface ProdutoProcessado {
   valor_unitario: number
 }
 
-interface VendasProcessadas {
-  produtos: ProdutoProcessado[]
-  totalVendas: number
-  totalPendente: number
-  totalDescontos: number
-}
-
 export function FileUploader() {
   const router = useRouter()
   const { setFormattedData } = useProdutos()
