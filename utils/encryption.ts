@@ -4,12 +4,12 @@ const ALGORITHM = 'aes-256-cbc'
 const ENCODING = 'hex'
 const IV_LENGTH = 16
 
-if (!process.env.NEXT_PUBLIC_SECRET_KEY) {
+if (!process.env.NEXT_PRIVATE_SECRET_KEY) {
   throw new Error('A variável de ambiente SECRET_KEY não está definida')
 }
 
 // Chave de 32 bytes (256 bits) da variável de ambiente
-const KEY = Buffer.from(process.env.NEXT_PUBLIC_SECRET_KEY, 'hex')
+const KEY = Buffer.from(process.env.NEXT_PRIVATE_SECRET_KEY, 'hex')
 
 export function encryptData(data: any): string {
   const iv = crypto.randomBytes(IV_LENGTH)

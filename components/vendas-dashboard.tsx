@@ -13,14 +13,6 @@ const formatarMoeda = (valor: number) => {
   }).format(valor)
 }
 
-// Dados iniciais para os cards
-const dadosIniciais = {
-  totalVendas: 0,
-  totalPendente: 0,
-  totalDescontos: 0,
-  periodo: 'Nenhum período selecionado'
-}
-
 export function VendasDashboard() {
   const { vendasDiarias } = useVendas()
 

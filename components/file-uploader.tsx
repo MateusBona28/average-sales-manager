@@ -73,10 +73,10 @@ export function FileUploader() {
   const [isErrorVendas, setIsErrorVendas] = useState(false)
 
   // Adicionar novo estado após os outros estados
-  const [produtosNaoEncontrados, setProdutosNaoEncontrados] = useState<string[]>([])
+  const [produtosNaoEncontrados, setProdutosNaoEncontrados] = useState<string[]>([]) //eslint-disable-line
 
   const handlePasswordSubmit = async () => {
-    if (password === process.env.NEXT_PUBLIC_DB_PASSWORD) {
+    if (password === process.env.NEXT_PRIVATE_DB_PASSWORD) {
       setShowPasswordDialog(false)
       if (selectedFile) {
         await processarBaseDados(selectedFile)
