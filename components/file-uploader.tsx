@@ -95,7 +95,7 @@ export function FileUploader() {
       }
       setPassword("")
       setSelectedFile(null)
-    } catch (error) {
+    } catch (error) { // eslint-disable-line
       toast.error('Senha incorreta', {
         description: 'Por favor, verifique a senha e tente novamente.'
       })
