@@ -4,6 +4,7 @@ import "./globals.css"
 import { ProdutosProvider } from "@/contexts/ProdutosContext"
 import { VendasProvider } from "@/contexts/VendasContext"
 import { Sidebar } from "@/components/ui/sidebar"
+import { Toaster } from 'sonner'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -30,6 +31,7 @@ export default function RootLayout({
             </div>
           </VendasProvider>
         </ProdutosProvider>
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   )
