@@ -8,6 +8,16 @@ import { useProdutos } from '@/contexts/ProdutosContext'
 import { useVendas } from '@/contexts/VendasContext'
 import { toast } from 'sonner'
 import { encryptData } from '@/utils/encryption'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Lock } from "lucide-react"
 
 interface ExcelVenda {
   Tipo: string
@@ -46,11 +56,34 @@ export function FileUploader() {
   const [isUploadingBase, setIsUploadingBase] = useState(false)
   const [progressBase, setProgressBase] = useState(0)
   const [isErrorBase, setIsErrorBase] = useState(false)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [password, setPassword] = useState("")
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   // Estados para o upload de vendas
   const [isUploadingVendas, setIsUploadingVendas] = useState(false)
   const [progressVendas, setProgressVendas] = useState(0)
   const [isErrorVendas, setIsErrorVendas] = useState(false)
+
+  const handlePasswordSubmit = async () => {
+    if (password === process.env.NEXT_PUBLIC_DB_PASSWORD) {
+      setShowPasswordDialog(false)
+      if (selectedFile) {
+        await processarBaseDados(selectedFile)
+      }
+      setPassword("")
+      setSelectedFile(null)
+    } else {
+      toast.error('Senha incorreta', {
+        description: 'Por favor, verifique a senha e tente novamente.'
+      })
+    }
+  }
+
+  const handleBaseFileSelect = async (file: File) => {
+    setSelectedFile(file)
+    setShowPasswordDialog(true)
+  }
 
   const validarBaseDados = (venda: ExcelVenda): boolean => {
     return (
@@ -315,26 +348,59 @@ export function FileUploader() {
   }
 
   return (
-    <div className="flex flex-row gap-6">
-      <FileUploadCard
-        title="Enviar Base de Dados"
-        description="Faça upload da planilha com os dados dos produtos"
-        accept=".xlsx,.xls"
-        onFileSelect={processarBaseDados}
-        isUploading={isUploadingBase}
-        progress={progressBase}
-        isError={isErrorBase}
-      />
-      <FileUploadCard
-        title="Enviar Vendas"
-        description="Faça upload da planilha com os dados das vendas"
-        accept=".xlsx,.xls"
-        onFileSelect={processarVendas}
-        isUploading={isUploadingVendas}
-        progress={progressVendas}
-        isError={isErrorVendas}
-      />
-    </div>
+    <>
+      <div className="flex flex-row gap-6">
+        <FileUploadCard
+          title="Enviar Base de Dados"
+          description="Faça upload da planilha com os dados dos produtos"
+          accept=".xlsx,.xls"
+          onFileSelect={handleBaseFileSelect}
+          isUploading={isUploadingBase}
+          progress={progressBase}
+          isError={isErrorBase}
+        />
+        <FileUploadCard
+          title="Enviar Vendas"
+          description="Faça upload da planilha com os dados das vendas"
+          accept=".xlsx,.xls"
+          onFileSelect={processarVendas}
+          isUploading={isUploadingVendas}
+          progress={progressVendas}
+          isError={isErrorVendas}
+        />
+      </div>
+
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Senha Necessária</DialogTitle>
+            <DialogDescription>
+              Digite a senha para processar a base de dados
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 border rounded-lg p-2">
+              <Lock className="h-4 w-4 text-gray-500" />
+              <Input
+                type="password"
+                placeholder="Digite a senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="border-0 focus-visible:ring-0"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handlePasswordSubmit()
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handlePasswordSubmit}>
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
