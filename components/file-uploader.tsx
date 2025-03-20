@@ -45,6 +45,7 @@ interface FormattedItem {
   valor_total: number
   valor_unitario: number
   data: Date
+  isContaVenda: boolean
 }
 
 interface VendaDiaria {
@@ -262,51 +263,56 @@ export function FileUploader() {
 
       // Mapear e processar os itens
       const itensProcessados = vendas.flatMap((venda) => {
-        if (venda.Descrição.includes('\r\n')) {
-          // Se tiver quebra de linha, processa cada linha separadamente como uma venda individual
-          const linhas = venda.Descrição.split('\r\n')
-          return linhas.map(linha => {
-            const resultado = formatarDescricao(linha)
+        const processarItem = (descricao: string, data: Date): FormattedItem | null => {
+          const resultado = formatarDescricao(descricao)
+          const isContaVenda = resultado.descricao.toUpperCase().includes('CONTA VENDA')
 
-            // Buscar valor unitário na base de dados
-            const produtoBase = baseDados.find(p => p.item === resultado.descricao)
-            if (!produtoBase) {
-              naoEncontrados.add(resultado.descricao)
-              return null
-            }
+          if (isContaVenda) {
+            // Para CONTA VENDA, usar o valor da própria venda
+            const valorString = venda["Vl.Produtos"].replace('R$', '').trim()
+            const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
 
-            const data = new Date(venda.Data * 24 * 60 * 60 * 1000 + new Date(Date.UTC(1899, 11, 30)).getTime())
             return {
               item: resultado.descricao,
               quantidade: parseInt(resultado.quantidade),
               data,
-              valor_unitario: produtoBase.valor_unitario,
-              valor_total: produtoBase.valor_unitario * parseInt(resultado.quantidade),
-              periodo: '' // será preenchido depois
+              valor_unitario: valor / parseInt(resultado.quantidade), // Calcula valor unitário
+              valor_total: valor,
+              periodo: '', // será preenchido depois
+              isContaVenda: true
             }
-          })
-        } else {
-          // Se não tiver quebra de linha, processa normalmente
-          const resultado = formatarDescricao(venda.Descrição)
+          }
 
-          // Buscar valor unitário na base de dados
+          // Buscar valor unitário na base de dados para itens normais
           const produtoBase = baseDados.find(p => p.item === resultado.descricao)
           if (!produtoBase) {
             naoEncontrados.add(resultado.descricao)
-            return [null]
+            return null
           }
 
-          const data = new Date(venda.Data * 24 * 60 * 60 * 1000 + new Date(Date.UTC(1899, 11, 30)).getTime())
-          return [{
+          return {
             item: resultado.descricao,
             quantidade: parseInt(resultado.quantidade),
             data,
             valor_unitario: produtoBase.valor_unitario,
             valor_total: produtoBase.valor_unitario * parseInt(resultado.quantidade),
-            periodo: '' // será preenchido depois
-          }]
+            periodo: '', // será preenchido depois
+            isContaVenda: false
+          }
         }
-      }).filter((item): item is FormattedItem => item !== null)
+
+        const data = new Date(venda.Data * 24 * 60 * 60 * 1000 + new Date(Date.UTC(1899, 11, 30)).getTime())
+
+        if (venda.Descrição.includes('\r\n')) {
+          // Se tiver quebra de linha, processa cada linha separadamente
+          const linhas = venda.Descrição.split('\r\n')
+          return linhas.map(linha => processarItem(linha, data)).filter((item): item is FormattedItem => item !== null)
+        } else {
+          // Se não tiver quebra de linha, processa normalmente
+          const item = processarItem(venda.Descrição, data)
+          return item ? [item] : []
+        }
+      })
 
       // Atualizar o estado dos produtos não encontrados
       setProdutosNaoEncontrados(Array.from(naoEncontrados).sort())
@@ -344,14 +350,14 @@ export function FileUploader() {
         if (itemExistente) {
           itemExistente.quantidade += curr.quantidade
           itemExistente.valor_total += curr.valor_total
+          // Recalcula o valor unitário médio para CONTA VENDA
+          if (itemExistente.isContaVenda) {
+            itemExistente.valor_unitario = itemExistente.valor_total / itemExistente.quantidade
+          }
         } else {
           acc.push({
-            item: curr.item,
-            quantidade: curr.quantidade,
-            periodo: periodoGlobal,
-            valor_total: curr.valor_total,
-            valor_unitario: curr.valor_unitario,
-            data: curr.data
+            ...curr,
+            periodo: periodoGlobal
           })
         }
         return acc
