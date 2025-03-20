@@ -1,8 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useVendas } from "@/contexts/VendasContext"
-import { DollarSign, Percent, AlertCircle, Calendar } from "lucide-react"
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { DollarSign, Tag, TrendingUp } from 'lucide-react'
 
 // Função para formatar valores em reais
 const formatarMoeda = (valor: number) => {
@@ -12,58 +13,115 @@ const formatarMoeda = (valor: number) => {
   }).format(valor)
 }
 
-// Dados iniciais para os cards
-const dadosIniciais = {
-  totalVendas: 0,
-  totalPendente: 0,
-  totalDescontos: 0,
-  periodo: 'Nenhum período selecionado'
-}
-
 export function VendasDashboard() {
-  const { vendasData } = useVendas()
-  const dados = vendasData || dadosIniciais
+  const { vendasDiarias } = useVendas()
+
+  // Calcular totais
+  const totalVendas = vendasDiarias.reduce((acc, venda) => acc + venda.valor, 0)
+  const totalDescontos = vendasDiarias.reduce((acc, venda) => acc + venda.descontos, 0)
+  const mediaVendas = totalVendas / (vendasDiarias.length || 1)
+
+  // Calcular período
+  const periodo = vendasDiarias.length > 0
+    ? `${vendasDiarias[0].data} até ${vendasDiarias[vendasDiarias.length - 1].data}`
+    : 'Nenhum período selecionado'
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card className="border-2 border-sky-100">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600">Total de Vendas</CardTitle>
-          <DollarSign className="h-4 w-4 text-sky-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-sky-600">{formatarMoeda(dados.totalVendas)}</div>
-          <div className="flex items-center text-sm text-gray-500 mt-2">
-            <Calendar className="h-4 w-4 mr-1" />
-            <span>{dados.periodo}</span>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="p-6">
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total de Vendas
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(totalVendas)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Valor líquido (descontos já subtraídos)
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total de Descontos
+            </CardTitle>
+            <Tag className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(totalDescontos)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Soma de todos os descontos aplicados
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Média de Vendas Diária
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(mediaVendas)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Média por dia no período
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card className="border-2 border-sky-100">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600">Vendas Pendentes</CardTitle>
-          <AlertCircle className="h-4 w-4 text-yellow-500" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Vendas por Dia</CardTitle>
+          <CardDescription>
+            Valores de vendas e descontos por dia no período: {periodo}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-yellow-600">{formatarMoeda(dados.totalPendente)}</div>
-          <div className="flex items-center text-sm text-gray-500 mt-2">
-            <Calendar className="h-4 w-4 mr-1" />
-            <span>{dados.periodo}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-2 border-sky-100">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600">Total de Descontos</CardTitle>
-          <Percent className="h-4 w-4 text-red-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-600">{formatarMoeda(dados.totalDescontos)}</div>
-          <div className="flex items-center text-sm text-gray-500 mt-2">
-            <Calendar className="h-4 w-4 mr-1" />
-            <span>{dados.periodo}</span>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={vendasDiarias}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="data" />
+                <YAxis />
+                <Tooltip
+                  formatter={(value: number) => formatarMoeda(value)}
+                  labelFormatter={(label) => `Data: ${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="valor"
+                  stroke="#2563eb"
+                  name="Vendas"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="descontos"
+                  stroke="#dc2626"
+                  name="Descontos"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>

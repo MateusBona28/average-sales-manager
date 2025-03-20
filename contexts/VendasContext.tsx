@@ -1,26 +1,25 @@
 "use client"
 
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 
-interface VendasData {
-  totalVendas: number
-  totalPendente: number
-  totalDescontos: number
-  periodo: string
+interface VendaDiaria {
+  data: string
+  valor: number
+  descontos: number
 }
 
 interface VendasContextType {
-  vendasData: VendasData | null
-  setVendasData: (data: VendasData) => void
+  vendasDiarias: VendaDiaria[]
+  setVendasDiarias: (data: VendaDiaria[]) => void
 }
 
 const VendasContext = createContext<VendasContextType | undefined>(undefined)
 
-export function VendasProvider({ children }: { children: React.ReactNode }) {
-  const [vendasData, setVendasData] = useState<VendasData | null>(null)
+export function VendasProvider({ children }: { children: ReactNode }) {
+  const [vendasDiarias, setVendasDiarias] = useState<VendaDiaria[]>([])
 
   return (
-    <VendasContext.Provider value={{ vendasData, setVendasData }}>
+    <VendasContext.Provider value={{ vendasDiarias, setVendasDiarias }}>
       {children}
     </VendasContext.Provider>
   )

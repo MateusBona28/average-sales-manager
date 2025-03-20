@@ -1,8 +1,8 @@
 "use client"
 
-import React, { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 
-interface Produto {
+interface FormattedItem {
   item: string
   quantidade: number
   periodo: string
@@ -11,14 +11,14 @@ interface Produto {
 }
 
 interface ProdutosContextType {
-  formattedData: Produto[] | null
-  setFormattedData: (data: Produto[]) => void
+  formattedData: FormattedItem[] | null
+  setFormattedData: (data: FormattedItem[] | null) => void
 }
 
 const ProdutosContext = createContext<ProdutosContextType | undefined>(undefined)
 
-export function ProdutosProvider({ children }: { children: React.ReactNode }) {
-  const [formattedData, setFormattedData] = useState<Produto[] | null>(null)
+export function ProdutosProvider({ children }: { children: ReactNode }) {
+  const [formattedData, setFormattedData] = useState<FormattedItem[] | null>(null)
 
   return (
     <ProdutosContext.Provider value={{ formattedData, setFormattedData }}>
