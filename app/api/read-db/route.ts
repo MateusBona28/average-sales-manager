@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const data = fs.readFileSync(filePath, 'utf-8')
-    return new NextResponse(data)
+    return NextResponse.json({ data })
   } catch (error) {
     console.error('Erro ao ler arquivo:', error)
     return NextResponse.json(

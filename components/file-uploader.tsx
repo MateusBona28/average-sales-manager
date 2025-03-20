@@ -76,14 +76,26 @@ export function FileUploader() {
   const [produtosNaoEncontrados, setProdutosNaoEncontrados] = useState<string[]>([]) //eslint-disable-line
 
   const handlePasswordSubmit = async () => {
-    if (password === process.env.NEXT_PRIVATE_DB_PASSWORD) {
+    try {
+      const response = await fetch('/api/validate-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Senha incorreta')
+      }
+
       setShowPasswordDialog(false)
       if (selectedFile) {
         await processarBaseDados(selectedFile)
       }
       setPassword("")
       setSelectedFile(null)
-    } else {
+    } catch (error) {
       toast.error('Senha incorreta', {
         description: 'Por favor, verifique a senha e tente novamente.'
       })
@@ -167,7 +179,7 @@ export function FileUploader() {
           }
 
           // Criptografar os dados
-          const dadosCriptografados = encryptData(produtosFinais)
+          const dadosCriptografados = await encryptData(produtosFinais)
 
           // Enviar para a API route
           const response = await fetch('/api/save-db', {
@@ -241,14 +253,14 @@ export function FileUploader() {
       if (!response.ok) {
         throw new Error('Erro ao ler base de dados')
       }
-      const dadosCriptografados = await response.text()
-      const baseDados = decryptData(dadosCriptografados) as ProdutoBase[]
+      const { data: dadosCriptografados } = await response.json()
+      const dadosDescriptografados = await decryptData(dadosCriptografados)
 
-      if (!baseDados || baseDados.length === 0) {
+      if (!dadosDescriptografados || !Array.isArray(dadosDescriptografados) || dadosDescriptografados.length === 0) {
         throw new Error('Base de dados está vazia')
       }
 
-      return baseDados
+      return dadosDescriptografados as ProdutoBase[]
     } catch (error) {
       console.error('Erro ao buscar base de dados:', error)
       throw new Error('Não foi possível acessar a base de dados. Por favor, verifique se a base de dados foi carregada.')

@@ -1,29 +1,43 @@
-import crypto from 'crypto'
+export async function encryptData(data: any): Promise<string> {
+  try {
+    const response = await fetch('/api/encrypt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    })
 
-const ALGORITHM = 'aes-256-cbc'
-const ENCODING = 'hex'
-const IV_LENGTH = 16
+    if (!response.ok) {
+      throw new Error('Erro ao criptografar dados')
+    }
 
-if (!process.env.NEXT_PRIVATE_SECRET_KEY) {
-  throw new Error('A variável de ambiente SECRET_KEY não está definida')
+    const result = await response.json()
+    return result.data
+  } catch (error) {
+    console.error('Erro ao criptografar dados:', error)
+    throw error
+  }
 }
 
-// Chave de 32 bytes (256 bits) da variável de ambiente
-const KEY = Buffer.from(process.env.NEXT_PRIVATE_SECRET_KEY, 'hex')
+export async function decryptData(encryptedData: string): Promise<any> {
+  try {
+    const response = await fetch('/api/decrypt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: encryptedData }),
+    })
 
-export function encryptData(data: any): string {
-  const iv = crypto.randomBytes(IV_LENGTH)
-  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv)
-  let encrypted = cipher.update(JSON.stringify(data), 'utf8', ENCODING)
-  encrypted += cipher.final(ENCODING)
-  return `${iv.toString(ENCODING)}:${encrypted}`
+    if (!response.ok) {
+      throw new Error('Erro ao descriptografar dados')
+    }
+
+    const result = await response.json()
+    return result.data
+  } catch (error) {
+    console.error('Erro ao descriptografar dados:', error)
+    throw error
+  }
 }
-
-export function decryptData(encryptedData: string): any {
-  const [ivHex, encryptedHex] = encryptedData.split(':')
-  const iv = Buffer.from(ivHex, ENCODING)
-  const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv)
-  let decrypted = decipher.update(encryptedHex, ENCODING, 'utf8')
-  decrypted += decipher.final('utf8')
-  return JSON.parse(decrypted)
-} 
