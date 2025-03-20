@@ -8,7 +8,6 @@ import { Upload, FileText, Loader2 } from "lucide-react"
 interface FileUploadCardProps {
   title: string
   description: string
-  accept: string
   onFileSelect: (file: File) => Promise<void>
   isUploading: boolean
   progress: number
@@ -18,7 +17,6 @@ interface FileUploadCardProps {
 export function FileUploadCard({
   title,
   description,
-  accept,
   onFileSelect,
   isUploading,
   progress,

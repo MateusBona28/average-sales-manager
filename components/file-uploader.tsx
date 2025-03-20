@@ -488,7 +488,6 @@ export function FileUploader() {
         <FileUploadCard
           title="Enviar Base de Dados"
           description="Faça upload da planilha com os dados dos produtos"
-          accept=".xlsx,.xls"
           onFileSelect={handleBaseFileSelect}
           isUploading={isUploadingBase}
           progress={progressBase}
@@ -497,7 +496,6 @@ export function FileUploader() {
         <FileUploadCard
           title="Enviar Vendas"
           description="Faça upload da planilha com os dados das vendas"
-          accept=".xlsx,.xls"
           onFileSelect={processarVendas}
           isUploading={isUploadingVendas}
           progress={progressVendas}
