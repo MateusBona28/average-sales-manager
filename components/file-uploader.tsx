@@ -7,7 +7,7 @@ import { FileUploadCard } from '@/components/file-upload-card'
 import { useProdutos } from '@/contexts/ProdutosContext'
 import { useVendas } from '@/contexts/VendasContext'
 import { toast } from 'sonner'
-import { encryptData } from '@/utils/encryption'
+import { encryptData, decryptData } from '@/utils/encryption'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,11 @@ interface ExcelVenda {
   "Preço de Venda": number
 }
 
+interface ProtudoExcel {
+  Produto: string
+  "Preço": number
+}
+
 interface ProdutoBase {
   item: string
   valor_unitario: number
@@ -39,6 +44,7 @@ interface FormattedItem {
   periodo: string
   valor_total: number
   valor_unitario: number
+  data: Date
 }
 
 interface VendaDiaria {
@@ -65,6 +71,9 @@ export function FileUploader() {
   const [progressVendas, setProgressVendas] = useState(0)
   const [isErrorVendas, setIsErrorVendas] = useState(false)
 
+  // Adicionar novo estado após os outros estados
+  const [produtosNaoEncontrados, setProdutosNaoEncontrados] = useState<string[]>([])
+
   const handlePasswordSubmit = async () => {
     if (password === process.env.NEXT_PUBLIC_DB_PASSWORD) {
       setShowPasswordDialog(false)
@@ -85,14 +94,25 @@ export function FileUploader() {
     setShowPasswordDialog(true)
   }
 
-  const validarBaseDados = (venda: ExcelVenda): boolean => {
+  const limparCaracteresEspeciais = (texto: string): string => {
+    return texto.replace(/["]/g, '').trim()
+  }
+
+  const validarBaseDados = (venda: ProtudoExcel): boolean => {
     return (
       venda &&
-      typeof venda.Descrição === 'string' &&
-      venda.Descrição.trim() !== '' &&
-      typeof venda["Preço de Venda"] === 'number' &&
-      venda["Preço de Venda"] > 0
+      typeof venda.Produto === 'string' &&
+      venda.Produto.trim() !== '' &&
+      typeof venda["Preço"] === 'number' &&
+      venda["Preço"] > 0
     )
+  }
+
+  const formatarProdutoBase = (produto: string): string => {
+    // Faz o split em X e limpa cada parte
+    const partes = produto.split('X').map(str => limparCaracteresEspeciais(str))
+    // Junta todas as partes com X, pois aqui não tem quantidade
+    return partes.join('X').trim()
   }
 
   const processarBaseDados = async (file: File) => {
@@ -107,23 +127,46 @@ export function FileUploader() {
           const workbook = XLSX.read(data, { type: 'array' })
           const firstSheetName = workbook.SheetNames[0]
           const worksheet = workbook.Sheets[firstSheetName]
-          const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
+          const jsonData = XLSX.utils.sheet_to_json(worksheet) as ProtudoExcel[]
 
           // Filtrar e formatar apenas os dados válidos
           const produtosBase: ProdutoBase[] = jsonData
             .filter(validarBaseDados)
             .map(venda => ({
-              item: venda.Descrição.trim(),
-              valor_unitario: Number(venda["Preço de Venda"])
+              item: formatarProdutoBase(venda.Produto),
+              valor_unitario: Number(venda["Preço"])
             }))
             .sort((a, b) => a.item.localeCompare(b.item))
 
-          if (produtosBase.length === 0) {
+          // Verificar se há produtos duplicados após a formatação
+          const produtosUnicos = new Map<string, ProdutoBase>()
+          const duplicados = new Set<string>()
+
+          produtosBase.forEach(produto => {
+            if (produtosUnicos.has(produto.item)) {
+              duplicados.add(produto.item)
+            } else {
+              produtosUnicos.set(produto.item, produto)
+            }
+          })
+
+          // Se houver duplicados, mostrar aviso
+          if (duplicados.size > 0) {
+            const duplicadosLista = Array.from(duplicados)
+            toast.warning('Produtos duplicados encontrados', {
+              description: `Os seguintes produtos aparecem mais de uma vez: ${duplicadosLista.join(', ')}`
+            })
+          }
+
+          // Usar apenas produtos únicos
+          const produtosFinais = Array.from(produtosUnicos.values())
+
+          if (produtosFinais.length === 0) {
             throw new Error('Nenhum produto válido encontrado na planilha')
           }
 
           // Criptografar os dados
-          const dadosCriptografados = encryptData(produtosBase)
+          const dadosCriptografados = encryptData(produtosFinais)
 
           // Enviar para a API route
           const response = await fetch('/api/save-db', {
@@ -139,7 +182,7 @@ export function FileUploader() {
           }
 
           toast.success('Base de dados atualizada com sucesso!', {
-            description: `${produtosBase.length} produtos foram processados.`
+            description: `${produtosFinais.length} produtos foram processados.`
           })
         } catch (error) {
           console.error('Erro ao processar arquivo:', error)
@@ -177,73 +220,151 @@ export function FileUploader() {
     }
   }
 
-  const formatAndSetProductsData = (vendas: ExcelVenda[]) => {
-    // Mapear e processar os itens
-    const itensProcessados = vendas.map((venda) => {
-      const [quantidade, item] = venda.Descrição.split('X').map((str: string) => str.trim())
+  const formatarDescricao = (descricao: string) => {
+    const partes = descricao.split('X').map(str => limparCaracteresEspeciais(str))
 
-      // Converter número do Excel para data JavaScript
-      const excelDate = venda.Data
-      const millisecondsPerDay = 24 * 60 * 60 * 1000
-      const excelEpoch = new Date(Date.UTC(1899, 11, 30))
-      const date = new Date(excelEpoch.getTime() + (excelDate * millisecondsPerDay))
-
-      return {
-        item,
-        quantidade: parseInt(quantidade),
-        data: date,
-        Vl: {
-          Produtos: venda["Vl.Produtos"]
-        }
-      }
-    })
-
-    // Encontrar a menor e maior data de todas as vendas
-    const datas = itensProcessados.map(item => item.data)
-    const dataMin = new Date(Math.min(...datas.map(d => d.getTime())))
-    const dataMax = new Date(Math.max(...datas.map(d => d.getTime())))
-
-    // Formatar o período global
-    const formatarData = (date: Date) => {
-      const dia = date.getDate().toString().padStart(2, '0')
-      const mes = (date.getMonth() + 1).toString().padStart(2, '0')
-      const ano = date.getFullYear()
-      return `${dia}/${mes}/${ano}`
+    if (partes.length > 2) {
+      // Se tiver mais de 2 partes, a primeira é quantidade e o resto é a descrição
+      const quantidade = partes[0]
+      const descricaoCompleta = partes.slice(1).join('X').trim()
+      return { quantidade, descricao: descricaoCompleta }
+    } else {
+      // Se tiver 2 ou menos partes, mantém o comportamento atual
+      return { quantidade: partes[0], descricao: partes[1] }
     }
+  }
 
-    const periodoGlobal = `${formatarData(dataMin)} até ${formatarData(dataMax)}`
+  const buscarBaseDados = async (): Promise<ProdutoBase[]> => {
+    try {
+      const response = await fetch('/api/read-db')
+      if (!response.ok) {
+        throw new Error('Erro ao ler base de dados')
+      }
+      const dadosCriptografados = await response.text()
+      const baseDados = decryptData(dadosCriptografados) as ProdutoBase[]
 
-    // Reduzir para somar quantidades de itens iguais
-    const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
-      // Extrair o valor do produto da string (ex: "R$ 123.45" -> 123.45)
-      const valorString = curr.Vl.Produtos.replace('R$', '').trim()
-      const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
+      if (!baseDados || baseDados.length === 0) {
+        throw new Error('Base de dados está vazia')
+      }
 
-      const itemExistente = acc.find((item) => item.item === curr.item)
-      if (itemExistente) {
-        itemExistente.quantidade += curr.quantidade
-        itemExistente.valor_total += valor
-      } else {
-        acc.push({
-          item: curr.item,
-          quantidade: curr.quantidade,
-          periodo: periodoGlobal,
-          valor_total: valor,
-          valor_unitario: 0 // será calculado depois
+      return baseDados
+    } catch (error) {
+      console.error('Erro ao buscar base de dados:', error)
+      throw new Error('Não foi possível acessar a base de dados. Por favor, verifique se a base de dados foi carregada.')
+    }
+  }
+
+  const formatAndSetProductsData = async (vendas: ExcelVenda[]) => {
+    try {
+      // Buscar base de dados primeiro
+      const baseDados = await buscarBaseDados()
+      const naoEncontrados = new Set<string>()
+
+      // Mapear e processar os itens
+      const itensProcessados = vendas.flatMap((venda) => {
+        if (venda.Descrição.includes('\r\n')) {
+          // Se tiver quebra de linha, processa cada linha separadamente como uma venda individual
+          const linhas = venda.Descrição.split('\r\n')
+          return linhas.map(linha => {
+            const resultado = formatarDescricao(linha)
+
+            // Buscar valor unitário na base de dados
+            const produtoBase = baseDados.find(p => p.item === resultado.descricao)
+            if (!produtoBase) {
+              naoEncontrados.add(resultado.descricao)
+              return null
+            }
+
+            const data = new Date(venda.Data * 24 * 60 * 60 * 1000 + new Date(Date.UTC(1899, 11, 30)).getTime())
+            return {
+              item: resultado.descricao,
+              quantidade: parseInt(resultado.quantidade),
+              data,
+              valor_unitario: produtoBase.valor_unitario,
+              valor_total: produtoBase.valor_unitario * parseInt(resultado.quantidade),
+              periodo: '' // será preenchido depois
+            }
+          })
+        } else {
+          // Se não tiver quebra de linha, processa normalmente
+          const resultado = formatarDescricao(venda.Descrição)
+
+          // Buscar valor unitário na base de dados
+          const produtoBase = baseDados.find(p => p.item === resultado.descricao)
+          if (!produtoBase) {
+            naoEncontrados.add(resultado.descricao)
+            return [null]
+          }
+
+          const data = new Date(venda.Data * 24 * 60 * 60 * 1000 + new Date(Date.UTC(1899, 11, 30)).getTime())
+          return [{
+            item: resultado.descricao,
+            quantidade: parseInt(resultado.quantidade),
+            data,
+            valor_unitario: produtoBase.valor_unitario,
+            valor_total: produtoBase.valor_unitario * parseInt(resultado.quantidade),
+            periodo: '' // será preenchido depois
+          }]
+        }
+      }).filter((item): item is FormattedItem => item !== null)
+
+      // Atualizar o estado dos produtos não encontrados
+      setProdutosNaoEncontrados(Array.from(naoEncontrados).sort())
+
+      // Se tiver produtos não encontrados, mostrar toast de aviso
+      if (naoEncontrados.size > 0) {
+        toast.warning('Alguns produtos não foram encontrados na base de dados', {
+          description: `${naoEncontrados.size} produtos não foram processados por não estarem cadastrados.`
         })
       }
-      return acc
-    }, [])
 
-    // Calcular valor unitário para cada item
-    const itensFinais = itensAgrupados.map(item => ({
-      ...item,
-      valor_unitario: Number((item.valor_total / item.quantidade).toFixed(2))
-    }))
+      // Continua apenas se houver itens processados
+      if (itensProcessados.length === 0) {
+        throw new Error('Nenhum produto válido encontrado na planilha de vendas')
+      }
 
-    itensFinais.sort((a, b) => a.item.localeCompare(b.item))
+      // Encontrar a menor e maior data de todas as vendas
+      const datas = itensProcessados.map(item => item.data)
+      const dataMin = new Date(Math.min(...datas.map(d => d.getTime())))
+      const dataMax = new Date(Math.max(...datas.map(d => d.getTime())))
 
-    setFormattedData(itensFinais)
+      // Formatar o período global
+      const formatarData = (date: Date) => {
+        const dia = date.getDate().toString().padStart(2, '0')
+        const mes = (date.getMonth() + 1).toString().padStart(2, '0')
+        const ano = date.getFullYear()
+        return `${dia}/${mes}/${ano}`
+      }
+
+      const periodoGlobal = `${formatarData(dataMin)} até ${formatarData(dataMax)}`
+
+      // Reduzir para somar quantidades de itens iguais
+      const itensAgrupados = itensProcessados.reduce<FormattedItem[]>((acc, curr) => {
+        const itemExistente = acc.find((item) => item.item === curr.item)
+        if (itemExistente) {
+          itemExistente.quantidade += curr.quantidade
+          itemExistente.valor_total += curr.valor_total
+        } else {
+          acc.push({
+            item: curr.item,
+            quantidade: curr.quantidade,
+            periodo: periodoGlobal,
+            valor_total: curr.valor_total,
+            valor_unitario: curr.valor_unitario,
+            data: curr.data
+          })
+        }
+        return acc
+      }, [])
+
+      // Ordenar por descrição
+      const itensFinais = itensAgrupados.sort((a, b) => a.item.localeCompare(b.item))
+
+      setFormattedData(itensFinais)
+    } catch (error) {
+      console.error('Erro ao processar vendas:', error)
+      throw error
+    }
   }
 
   const formatAndSetDailySales = (vendas: ExcelVenda[]) => {
@@ -296,31 +417,40 @@ export function FileUploader() {
     try {
       const reader = new FileReader()
 
-      reader.onload = (e) => {
-        const data = e.target?.result
-        const workbook = XLSX.read(data, { type: 'array' })
-        const firstSheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[firstSheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
+      reader.onload = async (e) => {
+        try {
+          const data = e.target?.result
+          const workbook = XLSX.read(data, { type: 'array' })
+          const firstSheetName = workbook.SheetNames[0]
+          const worksheet = workbook.Sheets[firstSheetName]
+          const jsonData = XLSX.utils.sheet_to_json(worksheet) as ExcelVenda[]
 
-        // Filtrar apenas vendas
-        const vendas = jsonData.filter((item) => item.Tipo === "Venda")
+          // Filtrar apenas vendas
+          const vendas = jsonData.filter((item) => item.Tipo === "Venda")
 
-        if (vendas.length === 0) {
-          throw new Error('Nenhuma venda encontrada na planilha')
+          if (vendas.length === 0) {
+            throw new Error('Nenhuma venda encontrada na planilha')
+          }
+
+          // Processar produtos
+          await formatAndSetProductsData(vendas)
+
+          // Processar vendas diárias
+          formatAndSetDailySales(vendas)
+
+          toast.success('Planilha de vendas processada com sucesso!', {
+            description: `${vendas.length} vendas foram processadas.`
+          })
+
+          router.push('/visao-geral')
+        } catch (error) {
+          console.error('Erro ao processar arquivo:', error)
+          setIsErrorVendas(true)
+          toast.error('Erro ao processar arquivo de vendas', {
+            description: error instanceof Error ? error.message : 'Verifique se o arquivo está correto e tente novamente.'
+          })
+          setTimeout(() => setIsErrorVendas(false), 3000)
         }
-
-        // Processar produtos
-        formatAndSetProductsData(vendas)
-
-        // Processar vendas diárias
-        formatAndSetDailySales(vendas)
-
-        toast.success('Planilha de vendas processada com sucesso!', {
-          description: `${vendas.length} vendas foram processadas.`
-        })
-
-        router.push('/visao-geral')
       }
 
       reader.onerror = () => {
@@ -329,8 +459,6 @@ export function FileUploader() {
           description: 'Verifique se o arquivo está correto e tente novamente.'
         })
         setTimeout(() => setIsErrorVendas(false), 3000)
-        setIsUploadingVendas(false)
-        setProgressVendas(0)
       }
 
       reader.readAsArrayBuffer(file)
