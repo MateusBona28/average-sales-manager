@@ -1,8 +1,9 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useVendas } from "@/contexts/VendasContext"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { DollarSign, Tag, TrendingUp } from 'lucide-react'
 
 // Função para formatar valores em reais
 const formatarMoeda = (valor: number) => {
@@ -23,46 +24,73 @@ const dadosIniciais = {
 export function VendasDashboard() {
   const { vendasDiarias } = useVendas()
 
-  const dados = vendasDiarias.length > 0 ? {
-    totalVendas: vendasDiarias.reduce((acc, venda) => acc + venda.valor, 0),
-    totalPendente: 0,
-    totalDescontos: vendasDiarias.reduce((acc, venda) => acc + venda.descontos, 0),
-    periodo: `${vendasDiarias[0].data} até ${vendasDiarias[vendasDiarias.length - 1].data}`
-  } : dadosIniciais
+  // Calcular totais
+  const totalVendas = vendasDiarias.reduce((acc, venda) => acc + venda.valor, 0)
+  const totalDescontos = vendasDiarias.reduce((acc, venda) => acc + venda.descontos, 0)
+  const mediaVendas = totalVendas / (vendasDiarias.length || 1)
+
+  // Calcular período
+  const periodo = vendasDiarias.length > 0
+    ? `${vendasDiarias[0].data} até ${vendasDiarias[vendasDiarias.length - 1].data}`
+    : 'Nenhum período selecionado'
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="p-6">
+      <div className="grid gap-4 md:grid-cols-3 mb-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total de Vendas
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarMoeda(dados.totalVendas)}</div>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(totalVendas)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {dados.periodo}
+              Valor líquido (descontos já subtraídos)
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pendente</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total de Descontos
+            </CardTitle>
+            <Tag className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarMoeda(dados.totalPendente)}</div>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(totalDescontos)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {dados.periodo}
+              Soma de todos os descontos aplicados
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Descontos</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Média de Vendas Diária
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatarMoeda(dados.totalDescontos)}</div>
+            <div className="text-2xl font-bold">
+              {formatarMoeda(mediaVendas)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              {dados.periodo}
+              Média por dia no período
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Período: {periodo}
             </p>
           </CardContent>
         </Card>
@@ -70,7 +98,10 @@ export function VendasDashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Vendas Diárias</CardTitle>
+          <CardTitle>Vendas por Dia</CardTitle>
+          <CardDescription>
+            Valores de vendas e descontos por dia no período: {periodo}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[400px]">

@@ -384,7 +384,7 @@ export function FileUploader() {
       const valor = parseFloat(valorString.replace('.', '').replace(',', '.'))
 
       // Extrair e converter valor dos descontos
-      const desconto = venda.Desconto
+      const desconto = venda.Desconto || 0 // Se não tiver desconto, usa 0
 
       // Acumular valores para a data
       if (!acc[dataFormatada]) {
@@ -400,13 +400,14 @@ export function FileUploader() {
     // Converter objeto em array e ordenar por data
     const vendasDiarias: VendaDiaria[] = Object.entries(vendasPorDia).map(([data, valores]) => ({
       data,
-      valor: Number(valores.valor.toFixed(2)),
+      valor: Number((valores.valor - valores.descontos).toFixed(2)), // Subtrai os descontos do valor total
       descontos: Number(valores.descontos.toFixed(2))
     })).sort((a, b) => {
       const [diaA, mesA, anoA] = a.data.split('/').map(Number)
       const [diaB, mesB, anoB] = b.data.split('/').map(Number)
       return new Date(anoA, mesA - 1, diaA).getTime() - new Date(anoB, mesB - 1, diaB).getTime()
     })
+
     setVendasDiarias(vendasDiarias)
   }
 
