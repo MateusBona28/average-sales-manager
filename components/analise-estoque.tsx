@@ -47,6 +47,10 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
   const [isDataValid, setIsDataValid] = useState(false)
   const [baseDados, setBaseDados] = useState<ProdutoBase[]>([])
 
+  // Estados para paginação
+  const [paginaAtual, setPaginaAtual] = useState(1)
+  const itensPorPagina = 10
+
   // Função para buscar base de dados
   const buscarBaseDados = async (): Promise<ProdutoBase[]> => {
     try {
@@ -209,6 +213,17 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
 
     return statusMatch && pesquisaMatch
   })
+
+  // Lógica de paginação
+  const totalPaginas = Math.ceil(produtosFiltrados.length / itensPorPagina)
+  const inicioIndex = (paginaAtual - 1) * itensPorPagina
+  const fimIndex = inicioIndex + itensPorPagina
+  const produtosPaginados = produtosFiltrados.slice(inicioIndex, fimIndex)
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1)
+  }, [filtroStatus, filtroPesquisa])
 
   const estatisticas = useMemo(() => {
     if (!isDataValid || isLoading) {
@@ -417,8 +432,8 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
           <CardTitle>Análise de Estoque por Produto</CardTitle>
           <div className="text-sm text-gray-600">
             {produtosFiltrados.length === analiseProdutos.length
-              ? `Exibindo todos os ${analiseProdutos.length} produtos`
-              : `Exibindo ${produtosFiltrados.length} de ${analiseProdutos.length} produtos`
+              ? `Exibindo ${produtosPaginados.length} de ${analiseProdutos.length} produtos (página ${paginaAtual} de ${totalPaginas})`
+              : `Exibindo ${produtosPaginados.length} de ${produtosFiltrados.length} produtos filtrados (página ${paginaAtual} de ${totalPaginas})`
             }
           </div>
         </CardHeader>
@@ -429,7 +444,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
                 Nenhum produto encontrado com o filtro selecionado.
               </div>
             ) : (
-              produtosFiltrados.map((item, index) => (
+              produtosPaginados.map((item, index) => (
                 <div
                   key={index}
                   className={`p-4 rounded-lg border transition-colors ${item.status === 'critico' ? 'bg-red-50 border-red-200' :
@@ -462,6 +477,82 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
                   </div>
                 </div>
               ))
+            )}
+
+            {/* Controles de paginação */}
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-between pt-6 border-t">
+                <div className="text-sm text-gray-700">
+                  Página {paginaAtual} de {totalPaginas} ({produtosFiltrados.length} produtos no total)
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Botão primeira página */}
+                  <button
+                    onClick={() => setPaginaAtual(1)}
+                    disabled={paginaAtual === 1}
+                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Primeira
+                  </button>
+
+                  {/* Botão página anterior */}
+                  <button
+                    onClick={() => setPaginaAtual(paginaAtual - 1)}
+                    disabled={paginaAtual === 1}
+                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Anterior
+                  </button>
+
+                  {/* Números das páginas */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPaginas) }, (_, i) => {
+                      let pageNum
+                      if (totalPaginas <= 5) {
+                        pageNum = i + 1
+                      } else if (paginaAtual <= 3) {
+                        pageNum = i + 1
+                      } else if (paginaAtual >= totalPaginas - 2) {
+                        pageNum = totalPaginas - 4 + i
+                      } else {
+                        pageNum = paginaAtual - 2 + i
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPaginaAtual(pageNum)}
+                          className={`px-3 py-1 text-sm border rounded-md ${paginaAtual === pageNum
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'hover:bg-gray-50'
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Botão próxima página */}
+                  <button
+                    onClick={() => setPaginaAtual(paginaAtual + 1)}
+                    disabled={paginaAtual === totalPaginas}
+                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Próxima
+                  </button>
+
+                  {/* Botão última página */}
+                  <button
+                    onClick={() => setPaginaAtual(totalPaginas)}
+                    disabled={paginaAtual === totalPaginas}
+                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Última
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </CardContent>
