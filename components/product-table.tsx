@@ -62,27 +62,12 @@ export function ProdutosTable() {
         <Table>
           <TableHeader className="bg-sky-50">
             <TableRow>
-              <TableHead className="font-semibold">Nome</TableHead>
-              <TableHead className="font-semibold text-right">
-                <button
-                  onClick={() => toggleSort("quantidade")}
-                  className="inline-flex items-center hover:text-sky-600"
-                >
-                  Quantidade
-                  <ArrowUpDown size={16} className={`ml-1 ${sortField === "quantidade" ? "text-sky-600" : ""}`} />
-                </button>
-              </TableHead>
-              <TableHead className="font-semibold text-right">Valor Unitário</TableHead>
-              <TableHead className="font-semibold text-right">
-                <button
-                  onClick={() => toggleSort("valor_total")}
-                  className="inline-flex items-center hover:text-sky-600"
-                >
-                  Valor Total
-                  <ArrowUpDown size={16} className={`ml-1 ${sortField === "valor_total" ? "text-sky-600" : ""}`} />
-                </button>
-              </TableHead>
-              <TableHead className="font-semibold">Período</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead className="text-right">Quantidade Vendida</TableHead>
+              <TableHead className="text-right">Estoque Atual</TableHead>
+              <TableHead className="text-right">Valor Unitário</TableHead>
+              <TableHead className="text-right">Valor Total</TableHead>
+              <TableHead>Período</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

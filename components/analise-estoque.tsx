@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, TrendingUp, TrendingDown, Package, Loader2 } from 'lucide-react'
+import { AlertTriangle, TrendingUp, TrendingDown, Package, Loader2, Search } from 'lucide-react'
+import { decryptData } from '@/utils/encryption'
 
 interface FormattedItem {
   item: string
@@ -10,6 +11,14 @@ interface FormattedItem {
   periodo: string
   valor_total: number
   valor_unitario: number
+  data: Date
+  isContaVenda: boolean
+}
+
+interface ProdutoBase {
+  item: string
+  valor_unitario: number
+  estoqueAtual: number
 }
 
 interface VendaDiaria {
@@ -26,7 +35,6 @@ interface AnaliseEstoqueProps {
 interface AnaliseProduto {
   produto: FormattedItem
   mediaVendas3Meses: number
-  estoqueAtual: number
   status: 'critico' | 'baixo' | 'adequado' | 'excesso'
   percentualEstoque: number
   mesesAnalisados: number
@@ -34,52 +42,84 @@ interface AnaliseProduto {
 
 export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
   const [filtroStatus, setFiltroStatus] = useState<'todos' | 'critico' | 'baixo' | 'adequado' | 'excesso'>('todos')
+  const [filtroPesquisa, setFiltroPesquisa] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isDataValid, setIsDataValid] = useState(false)
+  const [baseDados, setBaseDados] = useState<ProdutoBase[]>([])
+
+  // Função para buscar base de dados
+  const buscarBaseDados = async (): Promise<ProdutoBase[]> => {
+    try {
+      const response = await fetch('/api/read-db')
+      if (!response.ok) {
+        throw new Error('Erro ao ler base de dados')
+      }
+      const { data: dadosCriptografados } = await response.json()
+      const dadosDescriptografados = await decryptData(dadosCriptografados)
+
+      if (!dadosDescriptografados || !Array.isArray(dadosDescriptografados) || dadosDescriptografados.length === 0) {
+        throw new Error('Base de dados está vazia')
+      }
+
+      return dadosDescriptografados as ProdutoBase[]
+    } catch (error) {
+      console.error('Erro ao buscar base de dados:', error)
+      throw new Error('Não foi possível acessar a base de dados. Por favor, verifique se a base de dados foi carregada.')
+    }
+  }
 
   // Validar dados quando produtos ou vendas mudarem
   useEffect(() => {
-    const validateData = () => {
+    const validateData = async () => {
       setIsLoading(true)
 
-      // Verificar se os dados existem e são arrays válidos
-      const produtosValid = Array.isArray(produtos) && produtos.length > 0
-      const vendasValid = Array.isArray(vendas) && vendas.length > 0
+      try {
+        // Buscar base de dados
+        const dados = await buscarBaseDados()
+        setBaseDados(dados)
 
-      // Verificar se os produtos têm a estrutura correta
-      const produtosStructureValid = produtosValid && produtos.every(produto =>
-        typeof produto === 'object' &&
-        produto !== null &&
-        typeof produto.item === 'string' &&
-        typeof produto.quantidade === 'number' &&
-        typeof produto.periodo === 'string' &&
-        typeof produto.valor_total === 'number' &&
-        typeof produto.valor_unitario === 'number'
-      )
+        // Verificar se os dados existem e são arrays válidos
+        const produtosValid = Array.isArray(produtos) && produtos.length > 0
+        const vendasValid = Array.isArray(vendas) && vendas.length > 0
 
-      // Verificar se as vendas têm a estrutura correta
-      const vendasStructureValid = vendasValid && vendas.every(venda =>
-        typeof venda === 'object' &&
-        venda !== null &&
-        typeof venda.data === 'string' &&
-        typeof venda.valor === 'number' &&
-        typeof venda.descontos === 'number'
-      )
+        // Verificar se os produtos têm a estrutura correta
+        const produtosStructureValid = produtosValid && produtos.every(produto =>
+          typeof produto === 'object' &&
+          produto !== null &&
+          typeof produto.item === 'string' &&
+          typeof produto.quantidade === 'number' &&
+          typeof produto.periodo === 'string' &&
+          typeof produto.valor_total === 'number' &&
+          typeof produto.valor_unitario === 'number'
+        )
 
-      const isValid = produtosStructureValid && vendasStructureValid
-      setIsDataValid(isValid)
+        // Verificar se as vendas têm a estrutura correta
+        const vendasStructureValid = vendasValid && vendas.every(venda =>
+          typeof venda === 'object' &&
+          venda !== null &&
+          typeof venda.data === 'string' &&
+          typeof venda.valor === 'number' &&
+          typeof venda.descontos === 'number'
+        )
 
-      // Simular um pequeno delay para mostrar o loading
-      setTimeout(() => {
-        setIsLoading(false)
-      }, 500)
+        const isValid = produtosStructureValid && vendasStructureValid
+        setIsDataValid(isValid)
+      } catch (error) {
+        console.error('Erro ao validar dados:', error)
+        setIsDataValid(false)
+      } finally {
+        // Simular um pequeno delay para mostrar o loading
+        setTimeout(() => {
+          setIsLoading(false)
+        }, 500)
+      }
     }
 
     validateData()
   }, [produtos, vendas])
 
   const analiseProdutos = useMemo(() => {
-    if (!isDataValid || isLoading) return []
+    if (!isDataValid || isLoading || baseDados.length === 0) return []
 
     // Função para extrair datas do período (formato: "02/01/2025 até 01/07/2025")
     const extrairDatasPeriodo = (periodo: string): { dataInicio: Date | null, dataFim: Date | null } => {
@@ -124,15 +164,16 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
         // Calcular número de meses no período
         mesesComVendas = calcularMesesEntreDatas(dataInicio, dataFim)
 
-        // A quantidade já representa o total vendido no período
+        // A quantidade representa o total vendido no período
         const totalVendas = produto.quantidade
 
         // Calcular média mensal
         mediaVendas = mesesComVendas > 0 ? totalVendas / mesesComVendas : 0
       }
 
-      // Usar a quantidade do produto como estoque atual
-      const estoqueAtual = produto.quantidade
+      // Buscar estoque atual da base de dados
+      const produtoBase = baseDados.find(p => p.item === produto.item)
+      const estoqueAtual = produtoBase?.estoqueAtual || 0
 
       const percentualEstoque = mediaVendas > 0 ? (estoqueAtual / mediaVendas) * 100 : 0
 
@@ -156,11 +197,18 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
       if (statusDiff !== 0) return statusDiff
       return a.percentualEstoque - b.percentualEstoque
     })
-  }, [produtos, vendas, isDataValid, isLoading])
+  }, [produtos, vendas, isDataValid, isLoading, baseDados])
 
-  const produtosFiltrados = analiseProdutos.filter(item =>
-    filtroStatus === 'todos' || item.status === filtroStatus
-  )
+  const produtosFiltrados = analiseProdutos.filter(item => {
+    // Filtro por status
+    const statusMatch = filtroStatus === 'todos' || item.status === filtroStatus
+
+    // Filtro por pesquisa de texto
+    const pesquisaMatch = filtroPesquisa === '' ||
+      item.produto.item.toLowerCase().includes(filtroPesquisa.toLowerCase())
+
+    return statusMatch && pesquisaMatch
+  })
 
   const estatisticas = useMemo(() => {
     if (!isDataValid || isLoading) {
@@ -317,22 +365,48 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
       {/* Filtros */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtrar por Status</CardTitle>
+          <CardTitle>Filtrar Produtos</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {(['todos', 'critico', 'baixo', 'adequado', 'excesso'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFiltroStatus(status)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filtroStatus === status
-                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                  : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                  }`}
-              >
-                {status === 'todos' ? 'Todos' : getStatusText(status)}
-              </button>
-            ))}
+        <CardContent className="space-y-4">
+          {/* Campo de pesquisa */}
+          <div>
+            <label htmlFor="pesquisa" className="block text-sm font-medium text-gray-700 mb-2">
+              Pesquisar por nome do produto
+            </label>
+            <div className="relative">
+              <input
+                id="pesquisa"
+                type="text"
+                placeholder="Digite o nome do produto..."
+                value={filtroPesquisa}
+                onChange={(e) => setFiltroPesquisa(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </span>
+            </div>
+          </div>
+
+          {/* Filtros por status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filtrar por Status
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {(['todos', 'critico', 'baixo', 'adequado', 'excesso'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setFiltroStatus(status)}
+                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filtroStatus === status
+                    ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                    }`}
+                >
+                  {status === 'todos' ? 'Todos' : getStatusText(status)}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -341,6 +415,12 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
       <Card>
         <CardHeader>
           <CardTitle>Análise de Estoque por Produto</CardTitle>
+          <div className="text-sm text-gray-600">
+            {produtosFiltrados.length === analiseProdutos.length
+              ? `Exibindo todos os ${analiseProdutos.length} produtos`
+              : `Exibindo ${produtosFiltrados.length} de ${analiseProdutos.length} produtos`
+            }
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

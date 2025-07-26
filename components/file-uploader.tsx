@@ -31,11 +31,13 @@ interface ExcelVenda {
 interface ProtudoExcel {
   Produto: string
   "Preço": number
+  "Estoque Atual"?: number // Coluna opcional para capturar o estoque atual de cada produto
 }
 
 interface ProdutoBase {
   item: string
   valor_unitario: number
+  estoqueAtual: number
 }
 
 interface FormattedItem {
@@ -117,7 +119,8 @@ export function FileUploader() {
       typeof venda.Produto === 'string' &&
       venda.Produto.trim() !== '' &&
       typeof venda["Preço"] === 'number' &&
-      venda["Preço"] > 0
+      venda["Preço"] > 0 &&
+      (venda["Estoque Atual"] === undefined || typeof venda["Estoque Atual"] === 'number')
     )
   }
 
@@ -147,7 +150,8 @@ export function FileUploader() {
             .filter(validarBaseDados)
             .map(venda => ({
               item: formatarProdutoBase(venda.Produto),
-              valor_unitario: Number(venda["Preço"])
+              valor_unitario: Number(venda["Preço"]),
+              estoqueAtual: venda["Estoque Atual"] || 0 // Captura estoque da planilha
             }))
             .sort((a, b) => a.item.localeCompare(b.item))
 

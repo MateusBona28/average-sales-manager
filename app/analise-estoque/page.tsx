@@ -49,8 +49,8 @@ export default function AnaliseEstoquePage() {
     <div className="flex-1 p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Análise de Estoque</h1>
-        <AnaliseEstoque produtos={produtos} vendas={vendas} />
+        <AnaliseEstoque produtos={produtos as any} vendas={vendas as any} />
       </div>
     </div>
   )
-} 
+}
