@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart, Upload } from "lucide-react"
+import { BarChart, Upload, Package } from "lucide-react"
 import { Table, ChevronLeft, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -25,8 +25,13 @@ export function Sidebar() {
     },
     {
       title: "Visão Geral",
-      icon: BarChart,
       href: "/visao-geral",
+      icon: BarChart,
+    },
+    {
+      title: "Análise de Estoque",
+      icon: Package,
+      href: "/analise-estoque",
     },
   ]
 

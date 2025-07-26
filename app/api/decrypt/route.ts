@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { deriveKey } from '../../../utils/encryption'
 
 const ALGORITHM = 'aes-256-cbc'
 const ENCODING = 'hex'
@@ -16,8 +17,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Chave de 32 bytes (256 bits) da variável de ambiente
-    const key = Buffer.from(process.env.SECRET_KEY, ENCODING)
+    // Derivar chave de 32 bytes da variável de ambiente
+    const key = deriveKey(process.env.SECRET_KEY)
 
     // Separar IV e dados criptografados
     const [ivHex, encryptedHex] = encryptedData.split(':')

@@ -1,3 +1,11 @@
+import crypto from 'crypto'
+
+// Função para derivar uma chave de 32 bytes a partir de uma string
+export function deriveKey(secretKey: string): Buffer {
+  // Usar SHA-256 para criar uma chave de 32 bytes
+  return crypto.createHash('sha256').update(secretKey).digest()
+}
+
 export async function encryptData(data: any): Promise<string> {
   try {
     const response = await fetch('/api/encrypt', {
