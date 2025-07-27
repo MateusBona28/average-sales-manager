@@ -7,8 +7,6 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useProdutos } from "@/contexts/ProdutosContext"
 
-type SortField = "quantidade" | "valor_total" | null
-
 // Função para formatar valores em reais
 const formatarMoeda = (valor: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -22,21 +20,15 @@ const ITENS_POR_PAGINA = 12
 export function ProdutosTable() {
   const { formattedData } = useProdutos()
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortField, setSortField] = useState<SortField>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
   const filteredProdutos = formattedData?.filter((produto) =>
     produto.item.toLowerCase().includes(searchTerm.toLowerCase()),
   ) || []
 
-  const sortedProdutos = [...filteredProdutos].sort((a, b) => {
-    if (!sortField) return 0
-    return b[sortField] - a[sortField]
-  })
-
-  const totalPages = Math.ceil(sortedProdutos.length / ITENS_POR_PAGINA)
+  const totalPages = Math.ceil(filteredProdutos.length / ITENS_POR_PAGINA)
   const startIndex = (currentPage - 1) * ITENS_POR_PAGINA
-  const paginatedProdutos = sortedProdutos.slice(startIndex, startIndex + ITENS_POR_PAGINA)
+  const paginatedProdutos = filteredProdutos.slice(startIndex, startIndex + ITENS_POR_PAGINA)
 
   return (
     <div className="space-y-4 w-[100%]">

@@ -343,6 +343,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
       }
       return data.toLocaleDateString('pt-BR')
     } catch (error) {
+      console.error('Erro ao formatar data:', error)
       return dataStr
     }
   }
