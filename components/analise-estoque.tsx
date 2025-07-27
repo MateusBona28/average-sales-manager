@@ -188,7 +188,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
         status = 'incorreto'
       } else if (percentualEstoque < 50) {
         status = 'critico'
-      } else if (percentualEstoque < 80) {
+      } else if (percentualEstoque < 100) {
         status = 'baixo'
       } else if (percentualEstoque > 150) {
         status = 'excesso'
