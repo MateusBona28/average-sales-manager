@@ -34,14 +34,14 @@ interface AnaliseEstoqueProps {
 
 interface AnaliseProduto {
   produto: FormattedItem
-  mediaVendas3Meses: number
-  status: 'critico' | 'baixo' | 'adequado' | 'excesso'
+  mediaVendas: number
+  status: 'critico' | 'baixo' | 'adequado' | 'excesso' | 'incorreto'
   percentualEstoque: number
   mesesAnalisados: number
 }
 
 export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'critico' | 'baixo' | 'adequado' | 'excesso'>('todos')
+  const [filtroStatus, setFiltroStatus] = useState<'todos' | 'critico' | 'baixo' | 'adequado' | 'excesso' | 'incorreto'>('todos')
   const [filtroPesquisa, setFiltroPesquisa] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isDataValid, setIsDataValid] = useState(false)
@@ -182,21 +182,29 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
       const percentualEstoque = mediaVendas > 0 ? (estoqueAtual / mediaVendas) * 100 : 0
 
       let status: AnaliseProduto['status'] = 'adequado'
-      if (percentualEstoque < 50) status = 'critico'
-      else if (percentualEstoque < 80) status = 'baixo'
-      else if (percentualEstoque > 150) status = 'excesso'
+
+      // Primeiro verificar se o estoque é negativo (incorreto)
+      if (estoqueAtual < 0) {
+        status = 'incorreto'
+      } else if (percentualEstoque < 50) {
+        status = 'critico'
+      } else if (percentualEstoque < 80) {
+        status = 'baixo'
+      } else if (percentualEstoque > 150) {
+        status = 'excesso'
+      }
 
       return {
         produto,
-        mediaVendas3Meses: Math.round(mediaVendas * 100) / 100,
+        mediaVendas: Math.round(mediaVendas * 100) / 100,
         estoqueAtual,
         status,
         percentualEstoque: Math.round(percentualEstoque * 100) / 100,
         mesesAnalisados: mesesComVendas
       }
     }).sort((a, b) => {
-      // Ordenar por status crítico primeiro, depois por percentual
-      const statusOrder = { critico: 0, baixo: 1, adequado: 2, excesso: 3 }
+      // Ordenar por status incorreto primeiro, depois crítico, depois por percentual
+      const statusOrder = { incorreto: 0, critico: 1, baixo: 2, adequado: 3, excesso: 4 }
       const statusDiff = statusOrder[a.status] - statusOrder[b.status]
       if (statusDiff !== 0) return statusDiff
       return a.percentualEstoque - b.percentualEstoque
@@ -227,20 +235,22 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
 
   const estatisticas = useMemo(() => {
     if (!isDataValid || isLoading) {
-      return { total: 0, critico: 0, baixo: 0, adequado: 0, excesso: 0 }
+      return { total: 0, critico: 0, baixo: 0, adequado: 0, excesso: 0, incorreto: 0 }
     }
 
     const total = analiseProdutos.length
+    const incorreto = analiseProdutos.filter(p => p.status === 'incorreto').length
     const critico = analiseProdutos.filter(p => p.status === 'critico').length
     const baixo = analiseProdutos.filter(p => p.status === 'baixo').length
     const adequado = analiseProdutos.filter(p => p.status === 'adequado').length
     const excesso = analiseProdutos.filter(p => p.status === 'excesso').length
 
-    return { total, critico, baixo, adequado, excesso }
+    return { total, incorreto, critico, baixo, adequado, excesso }
   }, [analiseProdutos, isDataValid, isLoading])
 
   const getStatusColor = (status: AnaliseProduto['status']) => {
     switch (status) {
+      case 'incorreto': return 'text-purple-600 bg-purple-50 border-purple-200'
       case 'critico': return 'text-red-600 bg-red-50 border-red-200'
       case 'baixo': return 'text-orange-600 bg-orange-50 border-orange-200'
       case 'adequado': return 'text-green-600 bg-green-50 border-green-200'
@@ -251,6 +261,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
 
   const getStatusIcon = (status: AnaliseProduto['status']) => {
     switch (status) {
+      case 'incorreto': return <AlertTriangle className="h-4 w-4" />
       case 'critico': return <AlertTriangle className="h-4 w-4" />
       case 'baixo': return <TrendingDown className="h-4 w-4" />
       case 'adequado': return <TrendingUp className="h-4 w-4" />
@@ -261,6 +272,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
 
   const getStatusText = (status: AnaliseProduto['status']) => {
     switch (status) {
+      case 'incorreto': return 'Incorreto'
       case 'critico': return 'Crítico'
       case 'baixo': return 'Baixo'
       case 'adequado': return 'Adequado'
@@ -325,7 +337,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
   return (
     <div className="space-y-6">
       {/* Cards de estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total</CardTitle>
@@ -333,6 +345,16 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{estatisticas.total}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Incorreto</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{estatisticas.incorreto}</div>
           </CardContent>
         </Card>
 
@@ -409,7 +431,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
               Filtrar por Status
             </label>
             <div className="flex flex-wrap gap-2">
-              {(['todos', 'critico', 'baixo', 'adequado', 'excesso'] as const).map((status) => (
+              {(['todos', 'incorreto', 'critico', 'baixo', 'adequado', 'excesso'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setFiltroStatus(status)}
@@ -447,10 +469,11 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
               produtosPaginados.map((item, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg border transition-colors ${item.status === 'critico' ? 'bg-red-50 border-red-200' :
-                    item.status === 'baixo' ? 'bg-orange-50 border-orange-200' :
-                      item.status === 'adequado' ? 'bg-green-50 border-green-200' :
-                        'bg-blue-50 border-blue-200'
+                  className={`p-4 rounded-lg border transition-colors ${item.status === 'incorreto' ? 'bg-purple-50 border-purple-200' :
+                    item.status === 'critico' ? 'bg-red-50 border-red-200' :
+                      item.status === 'baixo' ? 'bg-orange-50 border-orange-200' :
+                        item.status === 'adequado' ? 'bg-green-50 border-green-200' :
+                          'bg-blue-50 border-blue-200'
                     }`}
                 >
                   <div className="flex items-center justify-between">
@@ -460,7 +483,7 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
                         <span className="font-medium">Estoque atual:</span> {item.estoqueAtual} unidades
                       </div>
                       <div className="mt-1 text-sm text-gray-600">
-                        <span className="font-medium">Média de vendas (últimos 3 meses):</span> {item.mediaVendas3Meses} unidades/mês
+                        <span className="font-medium">Média de vendas (últimos {item.mesesAnalisados} meses):</span> {item.mediaVendas} unidades/mês
                       </div>
                       <div className="mt-1 text-sm text-gray-600">
                         <span className="font-medium">Estoque representa:</span> {item.percentualEstoque}% da média mensal
