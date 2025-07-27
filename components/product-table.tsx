@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react"
+import { Search, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useProdutos } from "@/contexts/ProdutosContext"
 
@@ -25,26 +25,18 @@ export function ProdutosTable() {
   const [sortField, setSortField] = useState<SortField>(null)
   const [currentPage, setCurrentPage] = useState(1)
 
-  // Filtra os produtos com base no termo de busca
   const filteredProdutos = formattedData?.filter((produto) =>
     produto.item.toLowerCase().includes(searchTerm.toLowerCase()),
   ) || []
 
-  // Ordena os produtos
   const sortedProdutos = [...filteredProdutos].sort((a, b) => {
     if (!sortField) return 0
     return b[sortField] - a[sortField]
   })
 
-  // Calcula a paginação
   const totalPages = Math.ceil(sortedProdutos.length / ITENS_POR_PAGINA)
   const startIndex = (currentPage - 1) * ITENS_POR_PAGINA
   const paginatedProdutos = sortedProdutos.slice(startIndex, startIndex + ITENS_POR_PAGINA)
-
-  // Função para alternar ordenação
-  const toggleSort = (field: SortField) => {
-    setSortField(sortField === field ? null : field)
-  }
 
   return (
     <div className="space-y-4 w-[100%]">

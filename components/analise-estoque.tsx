@@ -12,8 +12,6 @@ interface FormattedItem {
   periodo: string
   valor_total: number
   valor_unitario: number
-  data: Date
-  isContaVenda: boolean
 }
 
 interface ProdutoBase {
