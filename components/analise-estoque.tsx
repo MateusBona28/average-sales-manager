@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertTriangle, TrendingUp, TrendingDown, Package, Loader2, Search } from 'lucide-react'
+import { AlertTriangle, TrendingUp, TrendingDown, Package, Loader2, Search, Download } from 'lucide-react'
 import { decryptData } from '@/utils/encryption'
+import * as XLSX from 'xlsx'
 
 interface FormattedItem {
   item: string
@@ -233,6 +234,54 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
     setPaginaAtual(1)
   }, [filtroStatus, filtroPesquisa])
 
+  // Função para exportar produtos incorretos
+  const exportarIncorretos = () => {
+    const produtosIncorretos = analiseProdutos.filter(item => item.status === 'incorreto')
+
+    if (produtosIncorretos.length === 0) {
+      alert('Não há produtos incorretos para exportar.')
+      return
+    }
+
+    // Preparar dados para exportação
+    const dadosExportacao = produtosIncorretos.map(item => ({
+      'Produto': item.produto.item,
+      'Estoque Atual': item.estoqueAtual,
+      'Média de Vendas (3 meses)': item.mediaVendas,
+      'Percentual do Estoque': `${item.percentualEstoque}%`,
+      'Meses Analisados': item.mesesAnalisados,
+      'Período': item.produto.periodo,
+      'Valor Unitário': `R$ ${item.produto.valor_unitario.toFixed(2).replace('.', ',')}`,
+      'Valor Total': `R$ ${item.produto.valor_total.toFixed(2).replace('.', ',')}`,
+      'Status': 'Incorreto'
+    }))
+
+    // Criar workbook e worksheet
+    const workbook = XLSX.utils.book_new()
+    const worksheet = XLSX.utils.json_to_sheet(dadosExportacao)
+
+    // Ajustar largura das colunas
+    const colunas = [
+      { wch: 30 }, // Produto
+      { wch: 15 }, // Estoque Atual
+      { wch: 20 }, // Média de Vendas
+      { wch: 20 }, // Percentual
+      { wch: 15 }, // Meses Analisados
+      { wch: 25 }, // Período
+      { wch: 15 }, // Valor Unitário
+      { wch: 15 }, // Valor Total
+      { wch: 12 }  // Status
+    ]
+    worksheet['!cols'] = colunas
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Produtos Incorretos')
+
+    const dataAtual = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')
+    const nomeArquivo = `produtos_incorretos_${dataAtual}.xlsx`
+
+    XLSX.writeFile(workbook, nomeArquivo)
+  }
+
   const estatisticas = useMemo(() => {
     if (!isDataValid || isLoading) {
       return { total: 0, critico: 0, baixo: 0, adequado: 0, excesso: 0, incorreto: 0 }
@@ -401,8 +450,16 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
 
       {/* Filtros */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Filtrar Produtos</CardTitle>
+          <button
+            onClick={exportarIncorretos}
+            disabled={estatisticas.incorreto === 0}
+            className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm cursor-pointer"
+          >
+            <Download className="h-4 w-4" />
+            Exportar Incorretos ({estatisticas.incorreto})
+          </button>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Campo de pesquisa */}
@@ -445,6 +502,8 @@ export function AnaliseEstoque({ produtos, vendas }: AnaliseEstoqueProps) {
               ))}
             </div>
           </div>
+
+
         </CardContent>
       </Card>
 
